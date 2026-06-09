@@ -1,0 +1,24 @@
+{
+  "model": "opus",
+  "effortLevel": "high",
+  "env": {
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-6[1m]"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/tools/plugin-patches/pr-review-toolkit-models.sh" }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "auto",
+        "hooks": [
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/tools/loop-observability/post-compact-log.sh" }
+        ]
+      }
+    ]
+  }
+}

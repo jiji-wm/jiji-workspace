@@ -1,0 +1,18 @@
+# Nested git repos (cloned via scripts/clone.sh)
+/repos/
+
+# Claude Code personal / runtime state (shared agent + command definitions are tracked)
+/.claude/settings.local.json
+/.claude/scheduled_tasks.lock
+
+# Claude Code runbook staging area (not part of the tracked setup)
+/docs/claude/
+
+# Temp files / playgrounds
+/tmp/
+
+# Private overlay (DDs, specs, plans, status) — cloned separately, never public
+/private/
+
+# Agent worktrees (runtime state)
+/.claude/worktrees/

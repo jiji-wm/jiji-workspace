@@ -1,0 +1,428 @@
+#!/usr/bin/env bash
+# workspace — Manage repos in the jiji workspace
+#
+# Usage: workspace <command> [options] [repos...]
+#
+# Commands:
+#   clone                Clone repos not yet present locally
+#   status               Show branch and working-tree status for each repo
+#   fetch                Fetch all remotes for each repo
+#   pull                 Pull the current branch for each repo
+#   dirty                List only repos with uncommitted changes
+#   unpushed             List repos whose HEAD is ahead of @{upstream} (unpushed commits)
+#   behind               List repos whose HEAD is behind @{upstream} (need pull/rebase)
+#   branches             Show the current branch of each repo
+#   exec                 Run a shell command inside each repo directory
+#   list                 List repos matching the current filters
+#   groups               List available groups
+#   strip-review-needed  Strip Review-Needed: trailers from unpushed commits
+#                        (delegates to tools/strip-review-needed/strip.sh)
+#
+# Options:
+#   -g, --group GROUPS   Only operate on repos in GROUPS (comma-separated)
+#   -s, --source SOURCES Only operate on repos from SOURCES (comma-separated)
+#   -h, --help           Show this help message
+#
+# Examples:
+#   workspace clone                          # clone all repos
+#   workspace status                         # status of all repos
+#   workspace dirty                          # show repos with uncommitted changes
+#   workspace exec -- git log --oneline -3   # run in all repos (-- for flags)
+#   workspace list                           # list all repos
+#   workspace strip-review-needed            # preview Review-Needed: trailers across repos
+#   workspace strip-review-needed --apply    # strip them
+#   workspace strip-review-needed --here --apply  # only the cwd sub-repo
+
+set -euo pipefail
+
+WORKSPACE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MANIFEST="$WORKSPACE/repos.conf"
+
+# ── Colors (off when stdout is not a terminal) ────────────────────────────────
+if [[ -t 1 ]]; then
+    RED=$'\033[31m'  GRN=$'\033[32m'  YLW=$'\033[33m'  BLU=$'\033[34m'
+    BOLD=$'\033[1m'  DIM=$'\033[2m'   RST=$'\033[0m'
+else
+    RED='' GRN='' YLW='' BLU='' BOLD='' DIM='' RST=''
+fi
+
+die()  { printf '%s\n' "${RED}error:${RST} $*" >&2; exit 1; }
+info() { printf '%s\n' "${BLU}::${RST} $*"; }
+
+# ── Argument parsing ──────────────────────────────────────────────────────────
+FILTER_GROUP=""
+FILTER_SOURCE=""
+CMD=""
+declare -a EXTRA=()
+
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -g|--group)  FILTER_GROUP="$2"; shift 2 ;;
+            -s|--source) FILTER_SOURCE="$2"; shift 2 ;;
+            -h|--help)   usage; exit 0 ;;
+            --)          shift; EXTRA=("$@"); return ;;
+            -*)
+                [[ -z "$CMD" ]] && die "unknown option: $1"
+                EXTRA=("$@"); return
+                ;;
+            *)
+                if [[ -z "$CMD" ]]; then
+                    CMD="$1"; shift
+                else
+                    EXTRA=("$@"); return
+                fi
+                ;;
+        esac
+    done
+}
+
+usage() { sed -n '2,/^$/{ s/^# \?//; p }' "$0"; }
+
+trim() {
+    local v="$1"
+    v="${v#"${v%%[![:space:]]*}"}"
+    v="${v%"${v##*[![:space:]]}"}"
+    printf '%s' "$v"
+}
+
+# ── Manifest iterator ────────────────────────────────────────────────────────
+# Calls: callback GROUP NAME URL BRANCH SOURCE
+each_repo() {
+    local callback="$1"
+    [[ -f "$MANIFEST" ]] || die "$MANIFEST not found"
+
+    local raw_group raw_name raw_url raw_branch raw_source
+    local group name url branch source
+
+    while IFS='|' read -r raw_group raw_name raw_url raw_branch raw_source; do
+        group=$(trim "$raw_group")
+        [[ -z "$group" || "$group" == \#* ]] && continue
+
+        name=$(trim "$raw_name")
+        url=$(trim "$raw_url")
+        branch=$(trim "$raw_branch")
+        source=$(trim "$raw_source")
+
+        # Group / source filters (CSV-aware)
+        if [[ -n "$FILTER_GROUP" ]]; then
+            local match=0
+            IFS=',' read -ra groups <<< "$FILTER_GROUP"
+            for g in "${groups[@]}"; do
+                [[ "$group" == "$(trim "$g")" ]] && match=1 && break
+            done
+            [[ $match -eq 0 ]] && continue
+        fi
+        if [[ -n "$FILTER_SOURCE" ]]; then
+            local match=0
+            IFS=',' read -ra sources <<< "$FILTER_SOURCE"
+            for s in "${sources[@]}"; do
+                [[ "$source" == "$(trim "$s")" ]] && match=1 && break
+            done
+            [[ $match -eq 0 ]] && continue
+        fi
+
+        # Positional repo-name filters (only for non-exec commands)
+        if [[ "$CMD" != "exec" && ${#EXTRA[@]} -gt 0 ]]; then
+            local match=0
+            local pattern
+            for pattern in "${EXTRA[@]}"; do
+                if [[ "$name" == "$pattern" || "$group/$name" == "$pattern" ]]; then
+                    match=1; break
+                fi
+            done
+            [[ $match -eq 0 ]] && continue
+        fi
+
+        "$callback" "$group" "$name" "$url" "$branch" "$source"
+    done < "$MANIFEST"
+}
+
+# ── Commands ──────────────────────────────────────────────────────────────────
+
+cmd_clone() {
+    local total=0 cloned=0 skipped=0 failed=0
+
+    _clone() {
+        local group="$1" name="$2" url="$3" branch="$4" source="$5"
+        local dir="$WORKSPACE/$group/$name"
+        ((total++)) || true
+
+        if [[ -d "$dir/.git" || -d "$dir/refs" ]]; then
+            printf "  ${DIM}%-50s already cloned${RST}\n" "$group/$name"
+            ((skipped++)) || true
+            return
+        fi
+
+        if [[ "$url" == "-" ]]; then
+            printf "  ${YLW}%-50s no remote (local-only), skipping${RST}\n" "$group/$name"
+            ((skipped++)) || true
+            return
+        fi
+
+        printf "  ${GRN}%-50s${RST} cloning..." "$group/$name"
+        mkdir -p "$WORKSPACE/$group/$(dirname "$name")"
+
+        if git clone --branch "$branch" -- "$url" "$dir" >/dev/null 2>&1; then
+            printf " ${GRN}done${RST}\n"
+            ((cloned++)) || true
+        else
+            printf " ${RED}FAILED${RST}\n"
+            ((failed++)) || true
+        fi
+    }
+
+    info "Cloning repos..."
+    each_repo _clone
+    echo ""
+    info "Done: ${cloned} cloned, ${skipped} skipped, ${failed} failed (${total} total)"
+}
+
+cmd_status() {
+    local total=0 dirty=0 missing=0 off_branch=0
+
+    _status() {
+        local group="$1" name="$2" url="$3" branch="$4" source="$5"
+        local dir="$WORKSPACE/$group/$name"
+        ((total++)) || true
+
+        if [[ ! -d "$dir/.git" && ! -d "$dir/refs" ]]; then
+            printf "  ${RED}%-50s not cloned${RST}\n" "$group/$name"
+            ((missing++)) || true
+            return
+        fi
+
+        local cur
+        cur=$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null || echo "detached")
+
+        local marker=""
+        if [[ -n "$(git -C "$dir" status --porcelain 2>/dev/null)" ]]; then
+            marker=" ${YLW}[dirty]${RST}"
+            ((dirty++)) || true
+        fi
+
+        local ahead="" behind_str=""
+        if upstream=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null); then
+            local a b
+            a=$(git -C "$dir" rev-list --count "${upstream}..HEAD" 2>/dev/null || echo 0)
+            b=$(git -C "$dir" rev-list --count "HEAD..${upstream}" 2>/dev/null || echo 0)
+            [[ "$a" -gt 0 ]] && ahead=" ${GRN}↑${a}${RST}"
+            [[ "$b" -gt 0 ]] && behind_str=" ${YLW}↓${b}${RST}"
+        fi
+
+        local color="$GRN"
+        if [[ "$cur" != "$branch" ]]; then
+            color="$YLW"
+            ((off_branch++)) || true
+        fi
+
+        printf "  ${color}%-50s${RST} %-20s%s%s%s\n" \
+            "$group/$name" "$cur" "$marker" "$ahead" "$behind_str"
+    }
+
+    each_repo _status
+    echo ""
+    info "${total} repo(s), ${dirty} dirty, ${missing} not cloned, ${off_branch} off default branch"
+}
+
+cmd_fetch() {
+    _fetch() {
+        local group="$1" name="$2" url="$3" branch="$4" source="$5"
+        local dir="$WORKSPACE/$group/$name"
+        [[ -d "$dir/.git" || -d "$dir/refs" ]] || return 0
+        printf "  fetching %-45s " "$group/$name"
+        git -C "$dir" fetch --all --prune >/dev/null 2>&1 && printf "${GRN}done${RST}\n" || printf "${RED}FAILED${RST}\n"
+    }
+    info "Fetching..."
+    each_repo _fetch
+}
+
+cmd_pull() {
+    _pull() {
+        local group="$1" name="$2" url="$3" branch="$4" source="$5"
+        local dir="$WORKSPACE/$group/$name"
+        [[ -d "$dir/.git" || -d "$dir/refs" ]] || return 0
+        printf "${BOLD}── %s ──${RST}\n" "$group/$name"
+        git -C "$dir" pull --ff-only 2>&1 | sed 's/^/   /'
+        echo
+    }
+    each_repo _pull
+}
+
+cmd_dirty() {
+    _dirty() {
+        local group="$1" name="$2" url="$3" branch="$4" source="$5"
+        local dir="$WORKSPACE/$group/$name"
+        [[ -d "$dir/.git" || -d "$dir/refs" ]] || return 0
+        [[ -n "$(git -C "$dir" status --porcelain 2>/dev/null)" ]] || return 0
+        printf "  ${YLW}%s${RST}\n" "$group/$name"
+    }
+    each_repo _dirty
+}
+
+cmd_unpushed() {
+    _unpushed() {
+        local group="$1" name="$2" url="$3" branch="$4" source="$5"
+        local dir="$WORKSPACE/$group/$name"
+        [[ -d "$dir/.git" || -d "$dir/refs" ]] || return 0
+        local up count
+        up=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null) || return 0
+        count=$(git -C "$dir" rev-list --count "${up}..HEAD" 2>/dev/null || echo 0)
+        [[ "$count" -gt 0 ]] || return 0
+        printf "  ${GRN}%-50s${RST} %d ahead\n" "$group/$name" "$count"
+    }
+    each_repo _unpushed
+}
+
+cmd_behind() {
+    _behind() {
+        local group="$1" name="$2" url="$3" branch="$4" source="$5"
+        local dir="$WORKSPACE/$group/$name"
+        [[ -d "$dir/.git" || -d "$dir/refs" ]] || return 0
+        local up count
+        up=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null) || return 0
+        count=$(git -C "$dir" rev-list --count "HEAD..${up}" 2>/dev/null || echo 0)
+        [[ "$count" -gt 0 ]] || return 0
+        printf "  ${YLW}%-50s${RST} %d behind\n" "$group/$name" "$count"
+    }
+    each_repo _behind
+}
+
+cmd_branches() {
+    _branches() {
+        local group="$1" name="$2" url="$3" branch="$4" source="$5"
+        local dir="$WORKSPACE/$group/$name"
+        [[ -d "$dir/.git" || -d "$dir/refs" ]] || return 0
+        local cur
+        cur=$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null || echo "detached")
+        local color="$GRN"
+        [[ "$cur" != "$branch" ]] && color="$YLW"
+        printf "  ${color}%-50s${RST} %s\n" "$group/$name" "$cur"
+    }
+    each_repo _branches
+}
+
+cmd_exec() {
+    [[ ${#EXTRA[@]} -gt 0 ]] || die "exec requires a command"
+
+    _exec() {
+        local group="$1" name="$2" url="$3" branch="$4" source="$5"
+        local dir="$WORKSPACE/$group/$name"
+        [[ -d "$dir" ]] || return 0
+        printf "${BOLD}── %s ──${RST}\n" "$group/$name"
+        (cd "$dir" && "${EXTRA[@]}")
+        echo
+    }
+    each_repo _exec
+}
+
+cmd_list() {
+    _list() {
+        local group="$1" name="$2" url="$3" branch="$4" source="$5"
+        printf "  %-10s %-35s %-15s %s\n" "$group" "$name" "$branch" "$source"
+    }
+    printf "  %-10s %-35s %-15s %s\n" "GROUP" "NAME" "BRANCH" "SOURCE"
+    printf "  %s\n" "──────────────────────────────────────────────────────────────────"
+    each_repo _list
+}
+
+cmd_groups() {
+    [[ -f "$MANIFEST" ]] || die "$MANIFEST not found"
+    declare -A group_counts=()
+    while IFS='|' read -r raw_group raw_name rest; do
+        local group
+        group=$(trim "$raw_group")
+        [[ -z "$group" || "$group" == \#* ]] && continue
+        group_counts["$group"]=$(( ${group_counts["$group"]:-0} + 1 ))
+    done < "$MANIFEST"
+    printf "  ${BOLD}%-25s %s${RST}\n" "GROUP" "REPOS"
+    for g in "${!group_counts[@]}"; do
+        printf "  %-25s %d\n" "$g" "${group_counts[$g]}"
+    done | sort
+}
+
+_has_review_needed() {
+    local dir="$1" range up
+    if up=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null); then
+        range="${up}..HEAD"
+    elif git -C "$dir" rev-parse --verify main >/dev/null 2>&1; then
+        range="main..HEAD"
+    elif git -C "$dir" rev-parse --verify master >/dev/null 2>&1; then
+        range="master..HEAD"
+    else
+        return 1
+    fi
+    git -C "$dir" log --grep='^Review-Needed:' --format='%H' "$range" 2>/dev/null \
+        | grep -q .
+}
+
+cmd_strip_review_needed() {
+    local script="$WORKSPACE/tools/strip-review-needed/strip.sh"
+    [[ -x "$script" ]] || die "missing tool: $script"
+
+    local here=0
+    local -a forward=()
+    local arg
+    for arg in "${EXTRA[@]+"${EXTRA[@]}"}"; do
+        case "$arg" in
+            --here|--current) here=1 ;;
+            *) forward+=("$arg") ;;
+        esac
+    done
+    EXTRA=()
+
+    if [[ $here -eq 1 ]]; then
+        local toplevel
+        toplevel=$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null) \
+            || die "--here: not inside a git repo"
+        info "Running in $toplevel"
+        ( cd "$toplevel" && bash "$script" "${forward[@]+"${forward[@]}"}" )
+        return
+    fi
+
+    local touched=0 skipped=0 failed=0
+
+    _strip() {
+        local group="$1" name="$2" url="$3" branch="$4" source="$5"
+        local dir="$WORKSPACE/$group/$name"
+        [[ -d "$dir/.git" || -d "$dir/refs" ]] || return 0
+
+        if ! _has_review_needed "$dir"; then
+            ((skipped++)) || true
+            return 0
+        fi
+
+        printf "${BOLD}── %s ──${RST}\n" "$group/$name"
+        if ( cd "$dir" && bash "$script" "${forward[@]+"${forward[@]}"}" ); then
+            ((touched++)) || true
+        else
+            ((failed++)) || true
+        fi
+        echo
+    }
+
+    each_repo _strip
+    info "${touched} repo(s) had Review-Needed: trailers in range; ${skipped} skipped (none); ${failed} failed"
+}
+
+# ── Dispatch ──────────────────────────────────────────────────────────────────
+
+parse_args "$@"
+[[ -n "$CMD" ]] || { usage; exit 0; }
+
+case "$CMD" in
+    clone)               cmd_clone               ;;
+    status)              cmd_status              ;;
+    fetch)               cmd_fetch               ;;
+    pull)                cmd_pull                ;;
+    dirty)               cmd_dirty               ;;
+    unpushed)            cmd_unpushed            ;;
+    behind)              cmd_behind              ;;
+    branches)            cmd_branches            ;;
+    exec)                cmd_exec                ;;
+    list)                cmd_list                ;;
+    groups)              cmd_groups              ;;
+    strip-review-needed) cmd_strip_review_needed ;;
+    help)                usage                   ;;
+    *)                   die "unknown command: $CMD (try: workspace help)" ;;
+esac
