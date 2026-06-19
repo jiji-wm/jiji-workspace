@@ -24,15 +24,33 @@ Selected by the post-target remainder of `$ARGUMENTS`:
 
 The mode only affects Steps 2, 6, and 8 — Steps 1, 3, 4, 5, 5b, 7 are identical. **Do not call `ScheduleWakeup`** in autonomous mode; the orchestrator owns iteration cadence.
 
+### Architect resume (all modes, layered on `SendMessage`)
+
+When `SendMessage` is available it resumes a completed/stopped background agent **with its full context retained** — so you can *resume the same architect* across a gate or an escalation instead of cold-dispatching a fresh one, preserving its full reasoning (the DD read, the hazard analysis), not just its distilled spec. This saves the re-derivation tokens and wall-clock of a fresh architect re-reading the DD and code, and is the reason to reach for it.
+
+**When it is available — process ownership, not gate-mode.** `SendMessage` is enabled by `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Because this workspace sets that flag in `.claude/settings.json` `env` (not as a transient shell var), it propagates to **every** Claude Code invocation in the repo — interactive *and* headless `claude -p` children. So the precondition is **not** the gate-mode (interactive vs. `--autonomous`) but whether *you* — the currently-running driver process — spawned the agent you want to resume. That holds in all three run shapes:
+
+- interactive `/jiji:land-subphase` in the main session — you spawned the architect; resume it;
+- autonomous `/jiji:land-subphase --autonomous` in the main session — same; `--autonomous` only suppresses the human gates, it does **not** move the architect into another process;
+- autonomous inside a `claude -p` loop child (spawned by `/jiji:loop` → `scripts/loop-subphase.sh`) — that child **is** the driver for its sub-phase and spawned its own architect, so it can resume it too.
+
+The *only* unreachable case is the `/jiji:loop` **outer** session trying to reach a child's architect — and that never arises, because every architect-resume happens **within** the same process that ran the earlier architect step.
+
+**Always consider resume vs. fresh dispatch** at each re-dispatch point. Prefer **resume** when the next step *continues* the same architect's work — a revision, an answer to its Open questions, or an escalated finding on the unit it just specced — because it keeps the full reasoning in context and is cheaper. Prefer a **fresh dispatch** when the work is genuinely new or unrelated (a different box/sub-phase), when the prior architect's context is stale or would mislead, or when `SendMessage` is unavailable. It is **layered on, never load-bearing**: the flag is experimental and double-gated (env var **plus** a server-side flag), so if `SendMessage` is absent or a resume call fails, fall back to a fresh `jiji-architect` dispatch — the unchanged default. **To keep the option open you must give the architect a stable, addressable `name` at dispatch (e.g. `architect-<target>`) and keep its `agentId` from the spawn result — in every mode, not just interactive.** The automatic Step 5 escalation (fixer → architect) is therefore resumable in autonomous runs too; the interactive Step 2 revision/answer path is the only one inherently gated to interactive mode (it is human feedback).
+
 ## Step 1 — Architect
 
 Invoke `jiji-architect` with input `target=<target> sub-phase=<remainder>` (blank remainder = next unchecked `[ ]` box in the current phase, then scan ahead and combine consecutive boxes into one landing unit per the grouping criteria). The architect resolves the target's DD and `<code_repo>/CLAUDE.md` itself and produces a spec per its output format, carrying `## Language` and `## Target repo` routing metadata.
+
+**All modes:** dispatch the architect with a stable `name` (e.g. `architect-<target>`) and retain its `agentId` from the spawn result, so Step 2 (interactive revision) and Step 5 (escalation, any mode) can `SendMessage`-resume it with full context when available (see *Architect resume* above). If `SendMessage` is absent this name is simply unused.
 
 **Human-only ratification special-case:** if the next unchecked box is a human-only design-ratification box, the architect will STOP without producing a spec — those boxes are human-only DD decisions. Resolve them by editing the target's DD directly (flip `[ ]` → `[x]` per ratification, optionally with an amendment note), commit, then re-run `/jiji:next-subphase <target>` or `/jiji:land-subphase <target>`.
 
 ## Step 2 — Spec gate
 
 **Interactive mode:** stop and wait for human review of the spec. Human says `go` to proceed, or asks the architect to revise.
+
+On a revision request (or when the human answers the architect's `## Open questions`): if `SendMessage` is available, **`SendMessage{to: "architect-<target>" (or the retained agentId), message: <the human's answer / revision request>}`** to resume the *same* architect — it still holds its full reasoning, so it revises in context rather than re-deriving from a distilled prompt. Wait for the revised spec, then re-gate. If `SendMessage` is absent, fall back to re-dispatching `jiji-architect` with the answer/revision folded into its input (the unchanged default).
 
 **Autonomous mode:** pass automatically — but inspect the architect's output first:
 
@@ -61,7 +79,7 @@ Invoke `jiji-fixer` with the review output. The fixer reads the spec's `## Targe
 
 - **Squashes** mechanicals into the reviewed commit via `git commit --amend` (preserves the `full-loop` trailer), when squashing keeps the commit's subject accurate.
 - **Creates a follow-up commit** when the finding doesn't fit the reviewed commit's scope. The follow-up uses the same `full-loop` trailer.
-- **Escalates** architectural findings back to Step 1 with that as the new `jiji-architect` input (architect produces a follow-up spec, loop continues).
+- **Escalates** architectural findings back to Step 1 with that as the new `jiji-architect` input (architect produces a follow-up spec, loop continues). This is an *automatic* re-dispatch, so it is resumable in **all modes** (interactive, autonomous main-session, and autonomous `claude -p` loop child): per *Architect resume* above, prefer `SendMessage`-resuming the original `architect-<target>` (by its retained name/`agentId`) with the escalated finding — it retains the sub-phase's full reasoning — and fall back to a fresh dispatch when `SendMessage` is unavailable or the finding is better handled cold.
 
 ## Step 5b — Targeted re-review decision
 

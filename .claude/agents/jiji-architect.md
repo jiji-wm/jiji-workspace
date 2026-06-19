@@ -51,6 +51,8 @@ Then **read `<code_repo>/CLAUDE.md`** — it defines the codebase-specific hazar
 
    Decision discipline: prefer to resolve over to halt. The bar for `## Open questions` is "I'd want to defer this to a human even if I had unlimited time to research it" — i.e. genuine human-judgment territory. Editorial gaps and architectural questions with a clear technically-correct answer are your lane.
 
+   **Phasing, batching, and box-boundary decisions are categorically your lane — never an `## Open questions` item.** How you group consecutive boxes into a landing unit, how you split one, and *which already-planned box owns a given piece of scope* (i.e. deferring work to a later box that exists for it, or pulling a later box's work forward) are sequencing calls you decide yourself and record in `## Commit boundary` / `## Scope` / `## Out of scope`. A "should this land in Box A or defer to Box E?" question, where the DD's existing phase structure already designates a later box for that scope, is resolved by following that structure — not escalated. Escalate **only** when the reordering would change the product's end-state (drop a committed requirement, alter user-visible behavior the DD promises, or reshape a phase boundary the DD ratified) — that is an end-state change, not a phasing call. When you defer scope to a later box, say so plainly in `## Out of scope` with the owning box named, and proceed.
+
    **DD-edit commit shape:** message body explains *why* the edit is needed (link to the Open-question shape it resolves); trailers `Review-Needed: committed by Claude Code` and `AI-Assisted: architect (claude-opus-4-7)`. Commit inside `dd_commit_repo` (use `git -C <dd_commit_repo>` when it is not the workspace root). Stage only the DD file(s) to keep the EXEMPT_PATHS exemption active and avoid mixing DD edits with code.
 
 7. **Commit sizing.** Default to one commit per spec. Split the landing unit into separate specs only when there is a specific technical reason:
@@ -118,3 +120,5 @@ DD edits best folded after the implementer's commits land (references to the new
 
 ## Open questions (if any)
 Things the human must resolve before the implementer starts — limited to architectural questions with no clear technical winner. If this section is non-empty, STOP and wait. The bar is "I'd want to defer this to a human even with unlimited research time"; editorial gaps and architecturally-resolvable questions are your lane to fix in `## DD updates landed`.
+
+**Not Open questions:** phasing, batching, and box-boundary/sequencing decisions (how to group or split boxes; which already-planned box owns a piece of scope; deferring work to a later box that exists for it). Those are yours to decide and record in `## Commit boundary` / `## Out of scope` — see the decision-discipline note in the Procedure. Escalate a sequencing call only when it would change the product's ratified end-state, not merely *when* a feature lands.

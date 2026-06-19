@@ -19,6 +19,7 @@ All loops share **one** role-based agent set and **one** flat command set in thi
   commands/
     jiji/
       land-subphase.md   → /jiji:land-subphase <target> [--autonomous] [sub-phase]
+      loop.md            → /jiji:loop <target> [max_iter]
       next-subphase.md   → /jiji:next-subphase <target> [sub-phase]
       implement.md       → /jiji:implement <target>
       apply-review.md    → /jiji:apply-review <target>
@@ -39,9 +40,12 @@ The loop supports an `--autonomous` flag that runs the full sub-phase end-to-end
 | Mode | Invocation | Iteration | Gates 2 + 6 |
 |---|---|---|---|
 | Interactive | `/jiji:land-subphase <target>` (typed) | One sub-phase per `go`/`scribe` exchange | Stop, await human |
-| Autonomous | `scripts/loop-subphase.sh <target> [N]` | N fresh `claude -p` sessions, back-to-back | Pass automatically; halt on conditions below |
+| Autonomous (detached) | `scripts/loop-subphase.sh <target> [N]` | N fresh `claude -p` sessions, back-to-back | Pass automatically; halt on conditions below |
+| Autonomous (in-session) | `/jiji:loop <target> [N]` | N detached iterations spawned one at a time from this session; each summary prints inline, halts return here | Pass automatically; halt on conditions below |
 
-`<target>` is a name registered in `loops.conf`; the orchestrator validates it against the registry and refuses anything else.
+`<target>` is a name registered in `loops.conf`; both drivers validate it against the registry and refuse anything else.
+
+`/jiji:loop` is the in-session L3 driver: it spawns `scripts/loop-subphase.sh <target> 1` one iteration at a time (re-entering on the background-completion notification, with a 30-min `ScheduleWakeup` fallback), summarizes each landed sub-phase inline via a haiku agent, and returns to the live session on any halt for an interactive decision. The detached script stays the single source of truth for *batch* logic; `/jiji:loop` only owns the iteration chain and a per-iter conversation surface. Chain state persists in a marker at `~/.cache/jiji-loop/<target>-chain<ts>.chain`, so a re-entered session can resume. (A failed `Workflow`-tool variant, `/jiji:flow`, was retired — see `docs/loops/workflow-tool-findings.md` for why the conversational driver won.)
 
 Halt conditions (the orchestrator stops cleanly with a `claude --resume <id>` hint and a desktop notification):
 
