@@ -57,8 +57,24 @@ install_user_unit() {
     fi
 }
 
-# ── Tool regime: per-user cargo install into ~/.cargo/bin ────────────────────
-if ! target_is_compositor "$TARGET"; then
+# ── waf regime: Python/GTK fork (hamster), system-wide via sudo ./waf install ─
+# build.sh runs `./waf configure build` as the user; we only do the root install
+# step here, matching upstream's `( umask 0022 && sudo ./waf install )` flow.
+if [ "$(target_regime "$TARGET")" = waf ]; then
+    echo "Installing $TARGET system-wide (sudo ./waf install)..."
+    cd "$DIR"
+    if [ ! -d build ]; then
+        echo "Error: no waf build/ in $DIR. Run ./scripts/build.sh $TARGET first." >&2
+        exit 1
+    fi
+    ( umask 0022 && sudo ./waf install )
+    echo "Done. $(target_bin "$TARGET") installed system-wide."
+    echo "Uninstall with: (cd $DIR && sudo ./waf uninstall)"
+    exit 0
+fi
+
+# ── Cargo tool regime: per-user cargo install into ~/.cargo/bin ──────────────
+if [ "$(target_regime "$TARGET")" = cargo ]; then
     BIN_NAME="$(target_bin "$TARGET")"
     echo "Installing $TARGET to ~/.cargo/bin (cargo install --offline)..."
     cd "$DIR"

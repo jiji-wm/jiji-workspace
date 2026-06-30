@@ -24,21 +24,32 @@ fi
 
 echo "Building $TARGET (release)..."
 cd "$DIR"
-cargo build --release
 
-if target_is_compositor "$TARGET"; then
-    # Binary name follows the fork's [package] name. Upstream and pre-rename
-    # jiji both produce 'niri'; post-compositor-rename jiji produces 'jiji'.
-    for name in jiji niri; do
-        if [ -f "$DIR/target/release/$name" ]; then
-            echo ""
-            echo "Build complete: $DIR/target/release/$name"
-            break
-        fi
-    done
-else
-    BIN="$(target_bin "$TARGET")"
-    echo ""
-    echo "Build complete: $DIR/target/release/$BIN"
-fi
+case "$(target_regime "$TARGET")" in
+    waf)
+        # Python/GTK fork (hamster): waf bundles its own build. Configure +
+        # build as the user; install.sh runs the system-wide `sudo ./waf install`.
+        ./waf configure build
+        echo ""
+        echo "Build complete (waf): $DIR/build"
+        ;;
+    compositor)
+        cargo build --release
+        # Binary name follows the fork's [package] name. Upstream and pre-rename
+        # jiji both produce 'niri'; post-compositor-rename jiji produces 'jiji'.
+        for name in jiji niri; do
+            if [ -f "$DIR/target/release/$name" ]; then
+                echo ""
+                echo "Build complete: $DIR/target/release/$name"
+                break
+            fi
+        done
+        ;;
+    cargo)
+        cargo build --release
+        BIN="$(target_bin "$TARGET")"
+        echo ""
+        echo "Build complete: $DIR/target/release/$BIN"
+        ;;
+esac
 echo "Run ./scripts/install.sh $TARGET to install."

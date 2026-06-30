@@ -19,7 +19,7 @@ You also need Rust (stable, >= 1.85). Install via [rustup](https://rustup.rs/) i
 ./scripts/install.sh     # installs to /usr/local/ and /etc/systemd/user/
 ```
 
-Both scripts take an optional target (`--targets` lists them): `upstream` (default) and `jiji` install the compositor system-wide as above; the tool targets (`jiji-activities`, `jiji-do`, `jiji-firefox-workspaces`, `jiji-hamster-bridge`) are installed per-user into `~/.cargo/bin` via `cargo install` (plus the tool's systemd user unit, when its repo ships one under `systemd/`).
+Both scripts take an optional target (`--targets` lists them): `upstream` (default) and `jiji` install the compositor system-wide as above; the cargo tool targets (`jiji-activities`, `jiji-do`, `jiji-firefox-workspaces`, `jiji-hamster-bridge`) are installed per-user into `~/.cargo/bin` via `cargo install` (plus the tool's systemd user unit, when its repo ships one under `systemd/`); `jiji-hamster` (Python/GTK, **waf** build) installs system-wide via `sudo ./waf install` — see its section below.
 
 This installs:
 
@@ -288,6 +288,28 @@ chezmoi apply
 Works against both compositor regimes: on a jiji build with the `app_tag`
 IPC field the host reads the structured tag; on upstream niri / older jiji
 it falls back to parsing the invisible title marker.
+
+### jiji-hamster (forked GNOME Hamster time tracker)
+
+Fork of [hamster](https://github.com/projecthamster/hamster) (Python/GTK, waf
+build) — the time-tracker app the bridge below drives over `org.gnome.Hamster`
+D-Bus. Install this instead of the Debian `hamster-time-tracker` package when you
+want the jiji-specific patches. The working clone keeps upstream as the
+`hamster-upstream` git remote for rebases.
+
+```sh
+# 1. Build deps (Python/GTK runtime + GNOME doc tooling; itstool/yelp optional —
+#    without them the docs build is auto-disabled)
+sudo apt install gettext intltool python3-gi python3-cairo python3-gi-cairo \
+    python3-dbus libglib2.0-dev libglib2.0-bin gir1.2-gtk-3.0 \
+    gtk-update-icon-cache itstool yelp
+
+# 2. Build (./waf configure build) then install system-wide (sudo ./waf install)
+./scripts/build.sh jiji-hamster
+./scripts/install.sh jiji-hamster
+```
+
+Uninstall with `(cd repos/jiji-hamster && sudo ./waf uninstall)`.
 
 ### jiji-hamster-bridge (activity-driven hamster time tracking)
 

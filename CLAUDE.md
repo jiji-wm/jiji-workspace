@@ -26,6 +26,10 @@ All repos are tracked by `repos.conf` and managed by the `workspace` script (`wo
 - **`repos/jiji-waybar/`** — Jiji's Waybar fork ([`jiji-wm/jiji-waybar`](https://github.com/jiji-wm/jiji-waybar)). Branch `main` adds jiji-specific activities modules; stays MIT (tracks upstream Waybar).
 - **`repos/upstream/waybar/`** — Upstream Waybar ([Alexays/Waybar](https://github.com/Alexays/Waybar)). Read-only mirror for rebase reference.
 
+#### Time tracker (fork)
+- **`repos/jiji-hamster/`** — Fork of the GNOME Hamster time tracker (Python/GTK, **waf** build, [`jiji-wm/jiji-hamster`](https://github.com/jiji-wm/jiji-hamster)). Tracks `projecthamster/hamster` upstream via the `hamster-upstream` git remote for periodic rebases; `origin` points at the jiji-wm repo (pushed manually — until then `scripts/clone.sh` bootstraps the working tree from upstream). Sibling of `jiji-hamster-bridge`, which drives it over `org.gnome.Hamster` D-Bus. Built/installed via the **`waf` regime** in `scripts/project-targets.sh` (`./waf configure build`, then `sudo ./waf install`) — not cargo.
+- **`repos/upstream/hamster/`** — Upstream Hamster ([projecthamster/hamster](https://github.com/projecthamster/hamster)). Read-only mirror for rebase reference.
+
 #### Awesome list
 - **`repos/reference/awesome-niri/`** — Curated awesome-list for niri ([niri-wm/awesome-niri](https://github.com/niri-wm/awesome-niri)). Community contribution to upstream niri — keeps the niri name.
 
@@ -42,8 +46,8 @@ Internal design docs, specs, plans, and live development status are **not** in t
 ### Scripts
 
 - `scripts/clone.sh` — Clone all nested repos (run once after cloning this workspace repo).
-- `scripts/build.sh [target]` — Release build of any workspace project; `--targets` lists them (defaults to `upstream`). Targets: `upstream`, `jiji`, `jiji-activities`, `jiji-do`, `jiji-firefox-workspaces`, `jiji-hamster-bridge`. Target registry shared with install.sh lives in `scripts/project-targets.sh`.
-- `scripts/install.sh [target]` — Compositor targets (`upstream`/`jiji`) install binary + session files to `/usr/local/`; tool targets `cargo install --offline` into `~/.cargo/bin`, plus — when the tool repo ships `systemd/<bin>.service` — the per-user unit into `~/.config/systemd/user/` with daemon-reload + try-restart (enable stays manual/one-time). Fish completes both scripts' first positional dynamically via `tools/workspace-install/fish/conf.d/jiji-build-scripts.fish`.
+- `scripts/build.sh [target]` — Release build of any workspace project; `--targets` lists them (defaults to `upstream`). Targets: `upstream`, `jiji`, `jiji-activities`, `jiji-do`, `jiji-firefox-workspaces`, `jiji-hamster`, `jiji-hamster-bridge`. Target registry shared with install.sh lives in `scripts/project-targets.sh`.
+- `scripts/install.sh [target]` — Three install regimes, classified by `target_regime` in `scripts/project-targets.sh`: **compositor** (`upstream`/`jiji`) installs binary + session files to `/usr/local/`; **cargo** tool targets `cargo install --offline` into `~/.cargo/bin`, plus — when the tool repo ships `systemd/<bin>.service` — the per-user unit into `~/.config/systemd/user/` with daemon-reload + try-restart (enable stays manual/one-time); **waf** (`jiji-hamster`) runs `sudo ./waf install` system-wide after `build.sh` has done `./waf configure build`. Fish completes both scripts' first positional dynamically via `tools/workspace-install/fish/conf.d/jiji-build-scripts.fish`.
 - `scripts/uninstall.sh` — Remove installed files (handles both `niri` and `jiji` names during the transition).
 
 ## Quick Reference
