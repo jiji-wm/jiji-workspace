@@ -4,13 +4,18 @@
 # hook (wired in .claude/settings.json) and can also be invoked manually after
 # /plugin update.
 #
-# Target overrides — narrowly scoped to the two low-stakes single-axis voices:
-#   comment-analyzer:  inherit -> sonnet
-#   pr-test-analyzer:  inherit -> sonnet
+# Target overrides — pin every voice that would otherwise inherit to an
+# explicit model so none follow the session model (the session may run on
+# fable):
+#   comment-analyzer:       inherit -> sonnet   (mechanical, single-axis)
+#   pr-test-analyzer:       inherit -> sonnet   (mechanical, single-axis)
+#   silent-failure-hunter:  inherit -> opus     (control-flow reasoning taste)
+#   type-design-analyzer:   inherit -> opus     (design/invariant reasoning taste)
 #
 # code-reviewer and code-simplifier are left at upstream opus (highest-leverage
-# review voices; broad reasoning benefits both). silent-failure-hunter and
-# type-design-analyzer are left at inherit (resolves to workspace opus default).
+# broad review voices). With the two taste voices also pinned to opus, the
+# review panel spans opus + sonnet with no agent inheriting the session, so it
+# reads the same whether the session runs on opus or fable.
 #
 # The script searches ~/.claude/plugins/cache/ (where auto-update puts freshly
 # pulled versions) and never touches the marketplace clone (which auto-update
@@ -55,7 +60,8 @@ set_model() {
 
 # Walk all versioned cache directories under the plugin root.
 # Each desired override: agent name + target model.
-for spec in "comment-analyzer=sonnet" "pr-test-analyzer=sonnet"; do
+for spec in "comment-analyzer=sonnet" "pr-test-analyzer=sonnet" \
+            "silent-failure-hunter=opus" "type-design-analyzer=opus"; do
   agent="${spec%%=*}"
   model="${spec##*=}"
   for f in "$CACHE_DIR"/*/agents/"$agent".md \

@@ -16,3 +16,9 @@
 
 # Agent worktrees (runtime state)
 /.claude/worktrees/
+
+# Brainstorming visual-companion artifacts (mockups, server state)
+/.superpowers/
+
+# Personal scratch todo list (feature ideas live in the private overlay / tool DDs)
+/TODO.md
