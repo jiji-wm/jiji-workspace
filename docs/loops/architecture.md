@@ -29,7 +29,7 @@ All loops share **one** role-based agent set and **one** flat command set in thi
       initiative.md      → /jiji:initiative [status|note|done]
 ```
 
-The flat commands take **`<target>` as their first argument** and resolve it against **`loops.conf`** (the loop-target registry: `name|language|code_repo|dd_path|dd_commit_repo`). Registered targets today: `compositor`, `cli`, `jiji-do`, `ff-restore` (Rust host), `ff-restore-ext` (JS — the Firefox extension half), and `ff-restore-comp` (Rust — compositor-side boxes of the ff-restore DD, code in `repos/jiji`). Adding a loop is one `loops.conf` row (plus, only for a genuinely new language, one `jiji-<language>-implementer` — `js` added 2026-06-03 for the extension fork). **`ff-restore` + `ff-restore-ext` + `ff-restore-comp` share one DD** (`repos/jiji-firefox-workspaces/docs/design.md`) split by component + language; always name the box explicitly when landing against it.
+The flat commands take **`<target>` as their first argument** and resolve it against **`loops.conf`** (the loop-target registry: `name|language|code_repo|dd_path|dd_commit_repo`). **`loops.conf` is the authoritative registry** — this doc deliberately doesn't mirror the full target list. Illustrative rows: `compositor` (rust, `repos/jiji`), `cli` (rust, `repos/jiji-activities`), `ff-restore-ext` (js, the Firefox extension half). Adding a loop is one `loops.conf` row (plus, only for a genuinely new language, one `jiji-<language>-implementer` — `js` added 2026-06-03 for the extension fork). Some targets share one DD split by component + language (see the comments in `loops.conf`); always name the box explicitly when landing against a shared DD.
 
 **Scope discipline.** One agent set serves every target. **Per-codebase discipline lives in each target repo's `CLAUDE.md`**, not in the agents — the compositor's invariant-check + test-bucket arithmetic in `repos/jiji/CLAUDE.md`, the CLI's `assert_cmd`/exit-code rigor in `repos/jiji-activities/CLAUDE.md`. The architect, fixer, and scribe read the target repo's `CLAUDE.md` for that context; only the **implementer specializes, and only by language** (`jiji-rust-implementer` today). This keeps the agents stable as targets are added: a new Rust tool costs zero new agents, a non-Rust tool costs one implementer, a non-CLI Rust tool costs only its own repo `CLAUDE.md` discipline.
 
@@ -65,7 +65,7 @@ Why fresh sessions: the orchestrator deliberately runs each iteration in its own
 |---|---|---|---|
 | Orchestrator run log | `~/.cache/jiji-loop/<loop>-<timestamp>.log` | yes (`tee`'d to terminal) | iteration banners, signal results, halt reasons |
 | Per-iteration JSON capture | `~/.cache/jiji-loop/<loop>-iter<N>-<HHMMSS>.json` | no — flushed at iter end | source of the parsed `LOOP_*` signal; full agent output for post-mortem |
-| **Agent live transcript** | `~/.claude/projects/<flattened-workspace-path>/<session-id>.jsonl` | **yes — appended in real time** | watching the agent think while it works |
+| **Agent live transcript** | `~/.claude/projects/<flattened-cwd>/<session-id>.jsonl` (Claude Code's per-project directory, derived from the workspace's absolute path) | **yes — appended in real time** | watching the agent think while it works |
 
 (The `~/.cache/jiji-loop/` cache dir name follows the workspace rename. Old logs under `~/.cache/niri-loop/` survive as a historical record.)
 

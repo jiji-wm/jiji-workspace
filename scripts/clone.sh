@@ -48,7 +48,8 @@ clone_repo "git@github.com:niri-wm/niri.git"             "$WORKSPACE_DIR/repos/u
 clone_repo "git@github.com:Alexays/Waybar.git"           "$WORKSPACE_DIR/repos/upstream/waybar"
 clone_repo "git@github.com:projecthamster/hamster.git"   "$WORKSPACE_DIR/repos/upstream/hamster"
 
-# jiji compositor + tools (jiji-wm org).
+# jiji compositor + tools (jiji-wm org). Note: repos/tools/tracy is intentionally
+# NOT cloned here — scripts/build-tracy.sh clones it lazily at its pinned tag.
 clone_repo "git@github.com:jiji-wm/jiji.git"                    "$WORKSPACE_DIR/repos/jiji"
 clone_repo "git@github.com:jiji-wm/jiji-activities.git"         "$WORKSPACE_DIR/repos/jiji-activities"
 clone_repo "git@github.com:jiji-wm/jiji-do.git"                 "$WORKSPACE_DIR/repos/jiji-do"

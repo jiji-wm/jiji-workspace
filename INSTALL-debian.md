@@ -117,6 +117,29 @@ sudo apt install \
 
 If you already have preferred alternatives (e.g. kitty/wezterm for terminal, rofi for launcher), you can skip the corresponding package and rebind in the niri config instead. The default config expects alacritty and fuzzel.
 
+#### jiji-waybar (Waybar fork with jiji modules)
+
+The workspace ships a Waybar fork at `repos/jiji-waybar` that adds jiji-specific
+activities modules. The stock Debian `waybar` package works fine for everything
+else; build the fork only if you want those modules.
+
+```sh
+# Build deps — easiest on Debian with deb-src enabled:
+sudo apt build-dep waybar
+# (otherwise install manually: meson ninja-build libgtkmm-3.0-dev libjsoncpp-dev
+#  libspdlog-dev libfmt-dev libwayland-dev libgtk-layer-shell-dev scdoc plus the
+#  optional feature deps you need)
+
+# Build and install the fork (installs to /usr/local, shadowing the apt package)
+cd repos/jiji-waybar
+meson setup build -Djiji=true
+ninja -C build
+sudo ninja -C build install
+```
+
+The jiji activities module shells out to `jiji-activities`, so that binary must
+be on `PATH` (see "jiji-activities" below) and a jiji session must be running.
+
 ### Screenshot annotation (Satty)
 
 [Satty](https://github.com/gabm/Satty) is a Wayland-native screenshot annotation editor (crop, arrows, numbered markers, text, blur, rectangles). Not in Debian repos — install via cargo:
@@ -226,6 +249,11 @@ xdg-desktop-portal-gnome xdg-desktop-portal-gtk gnome-keyring nautilus
 alacritty fuzzel sway-notification-center waybar swaylock swaybg
 fonts-font-awesome wl-clipboard grim slurp jq inotify-tools
 
+# jiji-hamster build deps (waf build; itstool/yelp optional) + hamster D-Bus service
+gettext intltool python3-gi python3-cairo python3-gi-cairo python3-dbus
+libglib2.0-dev libglib2.0-bin gir1.2-gtk-3.0 gtk-update-icon-cache itstool yelp
+hamster-time-tracker
+
 # Not in Debian repos (install via cargo)
 # libxcb-cursor-dev — build dependency for xwayland-satellite
 # libgtk-4-dev libadwaita-1-dev — build dependencies for satty
@@ -244,17 +272,17 @@ These are available in the parent `de/` workspace (see `../CLAUDE.md` for the fu
 | stasis | `../system/stasis` | Smart idle manager (media-aware, replaces swayidle) |
 | niri-taskbar | `<sibling-checkout>/niri-taskbar` | Taskbar module for Waybar |
 
-### niri-activities (KDE-style activities — fork-only feature)
+### jiji-activities (KDE-style activities — fork-only feature)
 
-The activities feature lives on the jiji fork (`./scripts/build.sh jiji` and `./scripts/install.sh jiji` in step 2 above). Once installed, the `niri-activities` CLI provides the user-facing surface.
+The activities feature lives on the jiji fork (`./scripts/build.sh jiji` and `./scripts/install.sh jiji` in step 2 above). Once installed, the `jiji-activities` CLI provides the user-facing surface.
 
 ```sh
 # Runtime dependencies for the pickers
 sudo apt install fuzzel rofi
 
-# Install the CLI binary (user-local, no sudo)
-cd <sibling-checkout>/niri-activities
-cargo install --path . --locked
+# Install the CLI binary (user-local, no sudo; also regenerates fish completions)
+./scripts/build.sh jiji-activities
+./scripts/install.sh jiji-activities
 ```
 
 Keybindings are pre-configured in the chezmoi niri config (see `keybindings.md` → "Activities"). The activities IPC requires the jiji fork; on upstream niri the binary itself works but `jiji-activities switch` etc. will fail with `socket unavailable` / `malformed response`.

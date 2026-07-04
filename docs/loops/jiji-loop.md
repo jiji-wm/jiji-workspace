@@ -2,19 +2,16 @@
 
 A practical reference for using the unified `jiji-*` subagents and flat `/jiji:*` slash commands to land sub-phases from any loop target's DD.
 
-**One loop, many targets.** A single role-based agent set (`jiji-architect`, `jiji-<language>-implementer`, `jiji-fixer`, `jiji-scribe`) drives every target. The first argument to each command is a **`<target>`** — a name registered in **`loops.conf`** (`name|language|code_repo|dd_path|dd_commit_repo`). Registered targets today:
+**One loop, many targets.** A single role-based agent set (`jiji-architect`, `jiji-<language>-implementer`, `jiji-fixer`, `jiji-scribe`) drives every target. The first argument to each command is a **`<target>`** — a name registered in **`loops.conf`** (`name|language|code_repo|dd_path|dd_commit_repo`). **The authoritative target registry is `loops.conf`** — check it for the current list rather than any snapshot here. Two illustrative rows:
 
 | target | language | code repo | DD | DD commit repo |
 |---|---|---|---|---|
 | `compositor` | rust | `repos/jiji` | `private/docs/activities/design.md` | private overlay (`private`) |
 | `cli` | rust | `repos/jiji-activities` | `repos/jiji-activities/docs/design.md` | `repos/jiji-activities` |
-| `jiji-do` | rust | `repos/jiji-do` | `repos/jiji-do/docs/design.md` | `repos/jiji-do` |
-| `ff-restore` | rust | `repos/jiji-firefox-workspaces` | `repos/jiji-firefox-workspaces/docs/design.md` | `repos/jiji-firefox-workspaces` |
-| `ff-restore-ext` | js | `repos/jiji-firefox-workspaces/extension` | `repos/jiji-firefox-workspaces/docs/design.md` | `repos/jiji-firefox-workspaces` |
 
 The command resolves the target against `loops.conf`, dispatches `jiji-<language>-implementer` (`rust` → `jiji-rust-implementer`, `js` → `jiji-js-implementer`), and the scribe commits the DD change in the target's `dd_commit_repo`. **Per-codebase discipline lives in each target repo's `CLAUDE.md`** — the compositor's invariant-check + test-bucket arithmetic in `repos/jiji/CLAUDE.md`, the CLI's `assert_cmd`/exit-code/fuzzel rigor in `repos/jiji-activities/CLAUDE.md`, the extension's marker/protocol contracts in `repos/jiji-firefox-workspaces/extension/CLAUDE.md`. The agents read it; they don't bake it.
 
-**Shared DDs (multi-loop).** Usually two targets never share an active DD. The exception is `ff-restore` + `ff-restore-ext`: one design doc split by component + language (Rust host in `src/`, JS extension in `extension/`). The checklist tags each box with its owning loop, and the architect plans only its loop's boxes. **When landing against a shared DD, always name the box** (e.g. `/jiji:land-subphase ff-restore-ext P4`) so the architect plans the right one.
+**Shared DDs (multi-loop).** Usually two targets never share an active DD. Occasionally they do — e.g. `ff-restore` + `ff-restore-ext`: one design doc split by component + language (Rust host in `src/`, JS extension in `extension/`); `loops.conf` comments mark the shared rows. The checklist tags each box with its owning loop, and the architect plans only its loop's boxes. **When landing against a shared DD, always name the box** (e.g. `/jiji:land-subphase ff-restore-ext P4`) so the architect plans the right one.
 
 ## TL;DR
 

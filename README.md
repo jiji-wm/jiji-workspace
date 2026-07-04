@@ -30,6 +30,7 @@ Nested repos live under `repos/` (gitignored; registry in `repos.conf`, managed 
 | `repos/jiji-firefox-workspaces/` | Per-workspace Firefox window restore (native host + WebExtension) |
 | `repos/jiji-hamster-bridge/` | Activity-driven [hamster](https://projecthamster.org/) time-tracking bridge |
 | `repos/jiji-waybar/` | Waybar fork with jiji activities modules |
+| `repos/tools/tracy/` | [Tracy](https://github.com/wolfpld/tracy) profiler GUI (pinned tag, cloned + built by `scripts/build-tracy.sh` — see `docs/profiling-tracy.md`) |
 | `repos/upstream/niri/` | Read-only mirror of [niri-wm/niri](https://github.com/niri-wm/niri) for rebase reference |
 | `repos/upstream/waybar/` | Read-only mirror of [Alexays/Waybar](https://github.com/Alexays/Waybar) |
 | `repos/reference/awesome-niri/` | Curated [awesome-niri](https://github.com/niri-wm/awesome-niri) list (community contribution to upstream) |
