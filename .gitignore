@@ -11,8 +11,8 @@
 # Temp files / playgrounds
 /tmp/
 
-# Private overlay (DDs, specs, plans, status) — cloned separately, never public
-/private/
+# Specs overlay (DDs, specs, plans, status) — its own access-restricted repo
+/specs/
 
 # Agent worktrees (runtime state)
 /.claude/worktrees/
@@ -20,5 +20,5 @@
 # Brainstorming visual-companion artifacts (mockups, server state)
 /.superpowers/
 
-# Personal scratch todo list (feature ideas live in the private overlay / tool DDs)
+# Personal scratch todo list (feature ideas live in the specs overlay / tool DDs)
 /TODO.md

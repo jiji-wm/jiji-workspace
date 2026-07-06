@@ -44,7 +44,7 @@ end
 
 function __workspace_subcmd_accepts_repos
     set -l sub (__workspace_subcmd); or return 1
-    contains -- $sub clone status fetch pull dirty unpushed behind branches paths list cdr cdrepo
+    contains -- $sub clone status fetch pull sync dirty unpushed behind branches paths list cdr cdrepo
 end
 
 function __workspace_subcmd_accepts_workspace_name
@@ -68,6 +68,7 @@ complete -c workspace -f -n __workspace_needs_sub -a clone     -d 'Clone repos n
 complete -c workspace -f -n __workspace_needs_sub -a status    -d 'Branch and working-tree status'
 complete -c workspace -f -n __workspace_needs_sub -a fetch     -d 'Fetch all remotes'
 complete -c workspace -f -n __workspace_needs_sub -a pull      -d 'Pull current branch'
+complete -c workspace -f -n __workspace_needs_sub -a sync      -d 'Fetch + fast-forward every local branch'
 complete -c workspace -f -n __workspace_needs_sub -a dirty     -d 'List repos with uncommitted changes'
 complete -c workspace -f -n __workspace_needs_sub -a unpushed  -d 'List repos ahead of @{upstream}'
 complete -c workspace -f -n __workspace_needs_sub -a behind    -d 'List repos behind @{upstream}'

@@ -47,7 +47,7 @@ Model selection: frontmatter `model: sonnet` resolves to `claude-sonnet-4-6[1m]`
 - **Do not touch `Cargo.lock`** unless the spec says so. If a `Cargo.lock` change falls out of the implementation, mention it in the report so the human can sanity-check.
 - If a test fails unexpectedly, **report the failure output** — do not "fix" the test to make it pass.
 - If the test pass count is off from the spec's expected value, investigate before committing — a wrong count means you changed behavior you didn't intend to.
-- **Never modify the DD or the workspace `CLAUDE.md`.** Flipping `[ ]` → `[x]`, appending `Reviewed:` blocks, and editing the Resume cues in `private/docs/status.md` are the scribe's job (with the `AI-Assisted: scribe` trailer). Do not touch `*.md` files in the repo root or in `docs/` — those belong to the scribe or the human.
+- **Never modify the DD or the workspace `CLAUDE.md`.** Flipping `[ ]` → `[x]`, appending `Reviewed:` blocks, and editing the Resume cues in `specs/<owner>/status.md` are the scribe's job (with the `AI-Assisted: scribe` trailer). Do not touch `*.md` files in the repo root or in `docs/` — those belong to the scribe or the human.
 
 ## Output format
 

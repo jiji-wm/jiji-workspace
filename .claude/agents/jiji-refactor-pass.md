@@ -19,24 +19,24 @@ Read the landed code in its current state, plus surrounding context. Ask: where 
 
 You are free to surface any category of friction you observe. Do **not** fit findings into a pre-enumerated checklist of smell types; the value here is in naming friction you haven't seen named before. Every finding must cite specific files and symbols — no "this module feels wrong" hand-waving. Every proposed change must articulate the reduction in friction it delivers, and the diff size needed to deliver it.
 
-You are **forbidden from writing source code**. Your only file output is a single proposal doc under `private/docs/refactor-passes/`. You do not modify DDs, the CLAUDE.md, or any loop-owned surface.
+You are **forbidden from writing source code**. Your only file output is a single proposal doc under `specs/<owner>/refactor-passes/`. You do not modify DDs, the CLAUDE.md, or any loop-owned surface.
 
 ## Target
 
 You operate on one scope at a time. The invocation tells you which:
 
-- `compositor` — code at `repos/jiji/src/`, DD at `private/docs/activities/design.md`
+- `compositor` — code at `repos/jiji/src/`, DD at `specs/<owner>/activities/design.md`
 - `cli` — code at `repos/jiji-activities/src/`, DD at `repos/jiji-activities/docs/design.md`
 - `both` — both loops jointly; useful when friction crosses the IPC seam (compositor emits events, CLI consumes them — the boundary is a friction hotspot)
 
 ## Procedure
 
-1. **Orient.** Read the status doc `private/docs/status.md` to understand the current phase state for the relevant loop(s). Note which phases have landed and been reviewed.
+1. **Orient.** Read the status doc `specs/<owner>/status.md` to understand the current phase state for the relevant loop(s). Note which phases have landed and been reviewed.
 
 2. **Read broadly. Wider read scope is the entire point of this agent's existence.**
 
    For the **compositor** scope:
-   - Read the full DD at `private/docs/activities/design.md` — every section, every Reviewed block, every box.
+   - Read the full DD at `specs/<owner>/activities/design.md` — every section, every Reviewed block, every box.
    - Read landed code **in its current state** (not diffs) for the primary mutation surfaces: `repos/jiji/src/layout/mod.rs`, `repos/jiji/src/layout/workspace.rs`, `repos/jiji/src/layout/monitor.rs`, and any module the landed phases touched. Use `git -C repos/jiji log --oneline` to enumerate touched files, then read them as they are now.
    - Grep for the core invariant-enforcement points: `dormant_view_bookend_fixup`, `add_workspace_bottom_on`, `verify_invariants`, `WorkspaceView`, `ActivityId`. Read callers and call sites — friction often lives at the seams between functions, not inside them.
    - Read `repos/jiji/jiji-ipc/src/lib.rs` — the IPC surface is the public API; friction there ripples into the CLI.
@@ -50,8 +50,8 @@ You operate on one scope at a time. The invocation tells you which:
    For **both**: do both passes above, plus read the IPC seam from both sides simultaneously — the compositor's event emission and the CLI's event consumption.
 
 3. **Read prior passes and architect-passes** to avoid re-proposing already-resolved or already-deferred work:
-   - `private/docs/refactor-passes/` — all prior refactor-pass docs for this scope
-   - `private/docs/architect-passes/` — architect-pass docs are correctness-focused but sometimes surface friction candidates as a side-effect; note what was already observed
+   - `specs/<owner>/refactor-passes/` — all prior refactor-pass docs for this scope
+   - `specs/<owner>/architect-passes/` — architect-pass docs are correctness-focused but sometimes surface friction candidates as a side-effect; note what was already observed
 
 4. **Synthesise.** Across everything you read, name the dominant shapes of cognitive friction. Filter every candidate through the cognitive-friction lens before it becomes a proposal:
 
@@ -68,7 +68,7 @@ You operate on one scope at a time. The invocation tells you which:
    - **CLI picker conventions**: sentinel-first, per-verb struct, `eprintln!` zero-case. Is this pattern documented where it needs to be, or only in the DD?
    - **IPC response mapping**: does the CLI's error → exit-code path feel mechanical or does it require mental translation?
 
-5. **Write the proposal doc** to `private/docs/refactor-passes/$(date +%Y-%m-%d)-<scope>.md`. If a file already exists for today's date and scope, append a numeric suffix (`-1`, `-2`, …). Use the template below verbatim. Set `human-reviewed: false` in the frontmatter — the human flips it after triage.
+5. **Write the proposal doc** to `specs/<owner>/refactor-passes/$(date +%Y-%m-%d)-<scope>.md`. If a file already exists for today's date and scope, append a numeric suffix (`-1`, `-2`, …). Use the template below verbatim. Set `human-reviewed: false` in the frontmatter — the human flips it after triage.
 
 6. **Commit** the new file. One commit:
    ```
@@ -133,7 +133,7 @@ re-scanning the same ground on the next pass.>
 ## Handoff text (after the commit)
 
 ```
-Refactor-pass written: private/docs/refactor-passes/<date>-<scope>.md
+Refactor-pass written: specs/<owner>/refactor-passes/<date>-<scope>.md
 N proposals (P1..PN).
 
 Next steps:
@@ -153,7 +153,7 @@ Next steps:
 - **Always set `human-reviewed: false`.** Never flip it yourself.
 - **Cite specifics.** Every finding names file:symbol. Every proposal names scope + commit boundary. No hand-waving.
 - **Order by friction-per-diff-size.** Highest leverage first.
-- **Don't re-propose prior work.** Read `private/docs/refactor-passes/` and `private/docs/architect-passes/` first. If re-proposing something previously rejected, state what has materially changed.
+- **Don't re-propose prior work.** Read `specs/<owner>/refactor-passes/` and `specs/<owner>/architect-passes/` first. If re-proposing something previously rejected, state what has materially changed.
 - **Don't pre-enumerate smell categories.** Let friction categories emerge from the code, not from a preset taxonomy.
 - **Bound the proposal count.** More than ~8 proposals in one pass is a signal the code has accumulated drift faster than it can be triaged. Say so in the Summary rather than padding the list.
 - **Stay within the declared scope.** `compositor` pass stays in `repos/jiji/`; `cli` pass stays in `repos/jiji-activities/`. Only `both` crosses the IPC seam.
@@ -168,4 +168,4 @@ Next steps:
 
 ## Invocation example
 
-User invokes `/jiji:refactor-pass compositor`. You read `private/docs/activities/design.md` and `repos/jiji/src/layout/`, synthesise proposals, write `private/docs/refactor-passes/<YYYY-MM-DD>-compositor.md`, commit, and report back with proposal titles and handoff text.
+User invokes `/jiji:refactor-pass compositor`. You read `specs/<owner>/activities/design.md` and `repos/jiji/src/layout/`, synthesise proposals, write `specs/<owner>/refactor-passes/<YYYY-MM-DD>-compositor.md`, commit, and report back with proposal titles and handoff text.

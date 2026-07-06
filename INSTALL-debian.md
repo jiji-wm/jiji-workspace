@@ -102,22 +102,27 @@ sudo apt install \
 
 | Package | Tool | Purpose | Default keybind |
 |---------|------|---------|-----------------|
-| alacritty | alacritty | Terminal emulator (default, replaced by wezterm) | — |
-| fuzzel | fuzzel | Application launcher (default, replaced by rofi) | — |
+| alacritty | alacritty | Terminal emulator (default) | — |
+| fuzzel | fuzzel | Application launcher (default) | — |
 | sway-notification-center | swaync | Notification center (history, DND, grouped) | (background service) |
 | waybar | waybar | Status bar | (spawned at startup) |
 | swaylock | swaylock | Screen locker | — |
 | swaybg | swaybg | Wallpaper setter | (spawned at startup) |
 | fonts-font-awesome | — | Icon font used by waybar's default config | — |
 | wl-clipboard | wl-copy, wl-paste | Clipboard CLI for Wayland | — |
-| grim | grim | Wayland screenshot capture | Print (via satty pipeline) |
+| grim | grim | Wayland screenshot capture | — |
 | slurp | slurp | Interactive region selector for Wayland | (used by scripts) |
 | copyq | copyq | Clipboard history manager (text + images, GUI picker) | — |
 | qt5ct / qt6ct | qt5ct, qt6ct | Qt platform theme — color scheme switched by `theme-switch` (dark/light) | — |
 
 If you already have preferred alternatives (e.g. kitty/wezterm for terminal, rofi for launcher), you can skip the corresponding package and rebind in the niri config instead. The default config expects alacritty and fuzzel.
 
-#### jiji-waybar (Waybar fork with jiji modules)
+The maintainer's personal desktop configuration on top of these packages — custom
+waybar modules, keyd-based dual-layout switching, the layout/Caps-Lock focus-ring
+indicator, GTK theming — is documented alongside the dotfiles that implement it
+(chezmoi repo, `docs/jiji-desktop-setup.md`), not here.
+
+### jiji-waybar (Waybar fork with jiji modules)
 
 The workspace ships a Waybar fork at `repos/jiji-waybar` that adds jiji-specific
 activities modules. The stock Debian `waybar` package works fine for everything
@@ -152,7 +157,7 @@ sudo apt install libgtk-4-dev libadwaita-1-dev
 cargo install satty
 ```
 
-The niri config binds `Print` to: `grim - | ~/.cargo/bin/satty --filename -` (capture full screen, open Satty for annotation/crop, then save to disk or clipboard). The full path to satty is required because niri's `spawn-sh` uses `/bin/sh` which doesn't have `~/.cargo/bin` in PATH.
+Example bind — `Print` to: `grim - | ~/.cargo/bin/satty --filename -` (capture full screen, open Satty for annotation/crop, then save to disk or clipboard). The full path to satty is required because niri's `spawn-sh` uses `/bin/sh` which doesn't have `~/.cargo/bin` in PATH.
 
 ### Polkit authentication agent
 
@@ -247,7 +252,7 @@ xdg-desktop-portal-gnome xdg-desktop-portal-gtk gnome-keyring nautilus
 
 # Desktop tools
 alacritty fuzzel sway-notification-center waybar swaylock swaybg
-fonts-font-awesome wl-clipboard grim slurp jq inotify-tools
+fonts-font-awesome wl-clipboard grim slurp
 
 # jiji-hamster build deps (waf build; itstool/yelp optional) + hamster D-Bus service
 gettext intltool python3-gi python3-cairo python3-gi-cairo python3-dbus
@@ -263,14 +268,14 @@ hamster-time-tracker
 
 ## Optional: recommended ecosystem tools
 
-These are available in the parent `de/` workspace (see `../CLAUDE.md` for the full inventory). Build with `cargo build --release` in each repo.
+Independent niri-ecosystem projects that pair well with jiji (see the curated list in `repos/reference/awesome-niri/` for many more). Clone and build with `cargo build --release` in each repo.
 
-| Tool | Repo dir | Purpose |
+| Tool | Upstream | Purpose |
 |------|----------|---------|
-| niri-ror | `<sibling-checkout>/niri-ror` | Raise-or-run: focus an app or launch it |
-| ndrop | `<sibling-checkout>/ndrop` | Dropdown terminal emulation |
-| stasis | `../system/stasis` | Smart idle manager (media-aware, replaces swayidle) |
-| niri-taskbar | `<sibling-checkout>/niri-taskbar` | Taskbar module for Waybar |
+| niri-ror | <https://github.com/boomskats/niri-ror> | Raise-or-run: focus an app or launch it |
+| ndrop | <https://github.com/Schweber/ndrop> | Dropdown terminal emulation |
+| stasis | <https://github.com/saltnpepper97/stasis> | Smart idle manager (media-aware, replaces swayidle) |
+| niri-taskbar | <https://github.com/LawnGnome/niri-taskbar> | Taskbar module for Waybar |
 
 ### jiji-activities (KDE-style activities — fork-only feature)
 
@@ -285,7 +290,7 @@ sudo apt install fuzzel rofi
 ./scripts/install.sh jiji-activities
 ```
 
-Keybindings are pre-configured in the chezmoi niri config (see `keybindings.md` → "Activities"). The activities IPC requires the jiji fork; on upstream niri the binary itself works but `jiji-activities switch` etc. will fail with `socket unavailable` / `malformed response`.
+Bind the `jiji-activities` verbs in your niri config to taste (the maintainer's reference bindings live in the dotfiles repo, `docs/jiji-keybindings.md`). The activities IPC requires the jiji fork; on upstream niri the binary itself works but `jiji-activities switch` etc. will fail with `socket unavailable` / `malformed response`.
 
 ### jiji-firefox-workspaces (per-workspace Firefox window restore)
 

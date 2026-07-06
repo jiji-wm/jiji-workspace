@@ -12,7 +12,7 @@ The agent will:
 2. Read the full active DD(s) and landed code in its current state (not just diffs).
 3. Read prior refactor-pass and architect-pass docs to avoid re-proposing resolved work.
 4. Synthesise proposals ordered by friction-reduction-per-diff-size.
-5. Write a proposal doc to `private/docs/refactor-passes/YYYY-MM-DD-<scope>.md` with `human-reviewed: false`.
+5. Write a proposal doc to `specs/<owner>/refactor-passes/YYYY-MM-DD-<scope>.md` with `human-reviewed: false`.
 6. Commit the doc and report back with proposal titles and handoff text.
 
 No code is written. No DDs are modified. The output is a proposal for the human to triage.

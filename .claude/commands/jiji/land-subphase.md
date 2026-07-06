@@ -108,7 +108,7 @@ Report the decision in one line before proceeding: `Re-review: skipped (all mech
 
 ## Step 7 — Scribe
 
-Invoke `jiji-scribe` with input `target=<target>` plus all the sub-phase's commit hashes (amended primary + any follow-ups). The scribe resolves `dd_path` and `dd_commit_repo` from `loops.conf`, appends the `Reviewed: YYYY-MM-DD (<hash1>, <hash2>, ...).` paragraph to the target's DD, commits the DD change in `dd_commit_repo` with trailer `AI-Assisted: scribe (<model>)`, and bumps the status doc `private/docs/status.md` Resume cue.
+Invoke `jiji-scribe` with input `target=<target>` plus all the sub-phase's commit hashes (amended primary + any follow-ups). The scribe resolves `dd_path` and `dd_commit_repo` from `loops.conf`, appends the `Reviewed: YYYY-MM-DD (<hash1>, <hash2>, ...).` paragraph to the target's DD, commits the DD change in `dd_commit_repo` with trailer `AI-Assisted: scribe (<model>)`, and bumps the status doc `specs/<owner>/status.md` Resume cue.
 
 ## Step 8 — Report
 

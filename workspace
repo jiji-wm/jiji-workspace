@@ -8,6 +8,7 @@
 #   status               Show branch and working-tree status for each repo
 #   fetch                Fetch all remotes for each repo
 #   pull                 Pull the current branch for each repo
+#   sync                 Fetch + fast-forward every local branch of each repo
 #   dirty                List only repos with uncommitted changes
 #   unpushed             List repos whose HEAD is ahead of @{upstream} (unpushed commits)
 #   behind               List repos whose HEAD is behind @{upstream} (need pull/rebase)
@@ -86,6 +87,20 @@ trim() {
     printf '%s' "$v"
 }
 
+# ── Repo path resolution ─────────────────────────────────────────────────────
+# The special group `_root` places a repo directly at the workspace root —
+# used for standalone sibling repos (like the specs/ overlay) that need a
+# stable on-disk path for cross-references from agents, docs, and scripts.
+# Every other group is a literal path prefix under the workspace root.
+_repo_dir() {
+    local group="$1" name="$2"
+    if [[ "$group" == "_root" ]]; then
+        printf '%s/%s' "$WORKSPACE" "$name"
+    else
+        printf '%s/%s/%s' "$WORKSPACE" "$group" "$name"
+    fi
+}
+
 # ── Manifest iterator ────────────────────────────────────────────────────────
 # Calls: callback GROUP NAME URL BRANCH SOURCE
 each_repo() {
@@ -94,6 +109,14 @@ each_repo() {
 
     local raw_group raw_name raw_url raw_branch raw_source
     local group name url branch source
+
+    local check_patterns=0
+    local -a matched=()
+    if [[ "$CMD" != "exec" && ${#EXTRA[@]} -gt 0 ]]; then
+        check_patterns=1
+        local i
+        for ((i = 0; i < ${#EXTRA[@]}; i++)); do matched[i]=0; done
+    fi
 
     while IFS='|' read -r raw_group raw_name raw_url raw_branch raw_source; do
         group=$(trim "$raw_group")
@@ -122,13 +145,16 @@ each_repo() {
             [[ $match -eq 0 ]] && continue
         fi
 
-        # Positional repo-name filters (only for non-exec commands)
-        if [[ "$CMD" != "exec" && ${#EXTRA[@]} -gt 0 ]]; then
-            local match=0
-            local pattern
-            for pattern in "${EXTRA[@]}"; do
+        # Positional repo-name filters (only for non-exec commands). Mark every
+        # pattern that lands on this repo so a typo'd name errors out below
+        # instead of silently iterating zero repos.
+        if [[ $check_patterns -eq 1 ]]; then
+            local match=0 i pattern
+            for ((i = 0; i < ${#EXTRA[@]}; i++)); do
+                pattern="${EXTRA[i]}"
                 if [[ "$name" == "$pattern" || "$group/$name" == "$pattern" ]]; then
-                    match=1; break
+                    match=1
+                    matched[i]=1
                 fi
             done
             [[ $match -eq 0 ]] && continue
@@ -136,6 +162,17 @@ each_repo() {
 
         "$callback" "$group" "$name" "$url" "$branch" "$source"
     done < "$MANIFEST"
+
+    if [[ $check_patterns -eq 1 ]]; then
+        local -a unknown=()
+        local i
+        for ((i = 0; i < ${#EXTRA[@]}; i++)); do
+            [[ ${matched[i]} -eq 0 ]] && unknown+=("${EXTRA[i]}")
+        done
+        if [[ ${#unknown[@]} -gt 0 ]]; then
+            die "no such repo: ${unknown[*]} (try: workspace list)"
+        fi
+    fi
 }
 
 # ── Commands ──────────────────────────────────────────────────────────────────
@@ -145,7 +182,7 @@ cmd_clone() {
 
     _clone() {
         local group="$1" name="$2" url="$3" branch="$4" source="$5"
-        local dir="$WORKSPACE/$group/$name"
+        local dir; dir=$(_repo_dir "$group" "$name")
         ((total++)) || true
 
         if [[ -d "$dir/.git" || -d "$dir/refs" ]]; then
@@ -161,11 +198,22 @@ cmd_clone() {
         fi
 
         printf "  ${GRN}%-50s${RST} cloning..." "$group/$name"
-        mkdir -p "$WORKSPACE/$group/$(dirname "$name")"
+        mkdir -p "$(dirname "$dir")"
 
-        if git clone --branch "$branch" -- "$url" "$dir" >/dev/null 2>&1; then
+        # Read-only mirrors don't need every branch.
+        local -a args=(--branch "$branch")
+        case "$group" in
+            repos/upstream|repos/reference|repos/tools) args+=(--single-branch) ;;
+        esac
+
+        if git clone "${args[@]}" -- "$url" "$dir" >/dev/null 2>&1; then
             printf " ${GRN}done${RST}\n"
             ((cloned++)) || true
+        elif [[ "$group" == "_root" ]]; then
+            # Root overlays (e.g. specs/) are optional: no access is a
+            # normal condition for public contributors, not a failure.
+            printf " ${YLW}skipped (no access — optional overlay)${RST}\n"
+            ((skipped++)) || true
         else
             printf " ${RED}FAILED${RST}\n"
             ((failed++)) || true
@@ -183,7 +231,7 @@ cmd_status() {
 
     _status() {
         local group="$1" name="$2" url="$3" branch="$4" source="$5"
-        local dir="$WORKSPACE/$group/$name"
+        local dir; dir=$(_repo_dir "$group" "$name")
         ((total++)) || true
 
         if [[ ! -d "$dir/.git" && ! -d "$dir/refs" ]]; then
@@ -228,7 +276,7 @@ cmd_status() {
 cmd_fetch() {
     _fetch() {
         local group="$1" name="$2" url="$3" branch="$4" source="$5"
-        local dir="$WORKSPACE/$group/$name"
+        local dir; dir=$(_repo_dir "$group" "$name")
         [[ -d "$dir/.git" || -d "$dir/refs" ]] || return 0
         printf "  fetching %-45s " "$group/$name"
         git -C "$dir" fetch --all --prune >/dev/null 2>&1 && printf "${GRN}done${RST}\n" || printf "${RED}FAILED${RST}\n"
@@ -240,7 +288,7 @@ cmd_fetch() {
 cmd_pull() {
     _pull() {
         local group="$1" name="$2" url="$3" branch="$4" source="$5"
-        local dir="$WORKSPACE/$group/$name"
+        local dir; dir=$(_repo_dir "$group" "$name")
         [[ -d "$dir/.git" || -d "$dir/refs" ]] || return 0
         printf "${BOLD}── %s ──${RST}\n" "$group/$name"
         git -C "$dir" pull --ff-only 2>&1 | sed 's/^/   /'
@@ -249,10 +297,125 @@ cmd_pull() {
     each_repo _pull
 }
 
+cmd_sync() {
+    local total_updated=0 total_uptodate=0 total_cannot=0 total_noup=0 total_fetch_failed=0
+    declare -a problems=()
+
+    _sync() {
+        local group="$1" name="$2" url="$3" branch="$4" source="$5"
+        local dir; dir=$(_repo_dir "$group" "$name")
+        [[ -d "$dir/.git" || -d "$dir/refs" ]] || return 0
+        [[ "$url" == "-" ]] && return 0
+
+        local label="$group/$name"
+
+        if ! git -C "$dir" fetch --all --prune --quiet 2>/dev/null; then
+            printf "  ${RED}%-50s fetch failed${RST}\n" "$label"
+            problems+=("$label: fetch failed")
+            ((total_fetch_failed++)) || true
+            return 0
+        fi
+
+        local current
+        current=$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null || echo "")
+
+        local updated_here=0 uptodate_here=0 cannot_here=0 noup_here=0
+        local -a detail=()
+
+        local lb upstream local_sha upstream_sha ahead behind
+        while IFS= read -r lb; do
+            [[ -z "$lb" ]] && continue
+
+            if ! upstream=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name "${lb}@{upstream}" 2>/dev/null); then
+                ((noup_here++)) || true
+                continue
+            fi
+
+            local_sha=$(git -C "$dir" rev-parse "$lb" 2>/dev/null)    || continue
+            upstream_sha=$(git -C "$dir" rev-parse "$upstream" 2>/dev/null) || continue
+
+            if [[ "$local_sha" == "$upstream_sha" ]]; then
+                ((uptodate_here++)) || true
+                continue
+            fi
+
+            if git -C "$dir" merge-base --is-ancestor "$local_sha" "$upstream_sha" 2>/dev/null; then
+                # Fast-forward path. The currently checked-out branch can't be
+                # updated by `git fetch . src:dst` (it refuses to desync HEAD),
+                # so route it through `git merge --ff-only` instead — which
+                # also surfaces a dirty worktree blocking the ff.
+                if [[ -n "$current" && "$lb" == "$current" ]]; then
+                    if git -C "$dir" merge --ff-only --quiet "$upstream" 2>/dev/null; then
+                        detail+=("    ${GRN}${lb}${RST} → ${upstream} (ff, current branch)")
+                        ((updated_here++)) || true
+                    else
+                        detail+=("    ${RED}${lb}${RST} → ${upstream} ff failed on current branch (dirty worktree?)")
+                        problems+=("$label: $lb — ff failed on current branch (dirty worktree?)")
+                        ((cannot_here++)) || true
+                    fi
+                else
+                    if git -C "$dir" fetch --quiet . "${upstream}:${lb}" 2>/dev/null; then
+                        detail+=("    ${GRN}${lb}${RST} → ${upstream} (ff)")
+                        ((updated_here++)) || true
+                    else
+                        # Most likely cause: branch is checked out in another worktree.
+                        detail+=("    ${RED}${lb}${RST} → ${upstream} ff failed (checked out in another worktree?)")
+                        problems+=("$label: $lb — ff failed (checked out in another worktree?)")
+                        ((cannot_here++)) || true
+                    fi
+                fi
+            else
+                ahead=$(git -C "$dir"  rev-list --count "${upstream}..${lb}" 2>/dev/null || echo "?")
+                behind=$(git -C "$dir" rev-list --count "${lb}..${upstream}" 2>/dev/null || echo "?")
+                if [[ "$behind" == "0" ]]; then
+                    # Local-only: ahead of upstream, nothing to ff. Not a problem.
+                    detail+=("    ${DIM}${lb} ahead +${ahead} of ${upstream}${RST}")
+                else
+                    detail+=("    ${RED}${lb}${RST} diverged from ${upstream} (+${ahead}/-${behind})")
+                    problems+=("$label: $lb — diverged from $upstream (+${ahead}/-${behind})")
+                    ((cannot_here++)) || true
+                fi
+            fi
+        done < <(git -C "$dir" for-each-ref --format='%(refname:short)' refs/heads/)
+
+        local summary=""
+        ((updated_here  > 0)) && summary+=" ${GRN}${updated_here} ff${RST}"
+        ((uptodate_here > 0)) && summary+=" ${DIM}${uptodate_here} up-to-date${RST}"
+        ((cannot_here   > 0)) && summary+=" ${RED}${cannot_here} cannot-ff${RST}"
+        ((noup_here     > 0)) && summary+=" ${DIM}${noup_here} no-upstream${RST}"
+        [[ -z "$summary" ]]   && summary=" ${DIM}(no local branches)${RST}"
+        printf "  %-50s${summary}\n" "$label"
+
+        local line
+        for line in "${detail[@]}"; do
+            printf '%b\n' "$line"
+        done
+
+        ((total_updated      += updated_here))  || true
+        ((total_uptodate     += uptodate_here)) || true
+        ((total_cannot       += cannot_here))   || true
+        ((total_noup         += noup_here))     || true
+    }
+
+    info "Fetching + fast-forwarding all local branches..."
+    each_repo _sync
+    echo ""
+    info "Done: ${total_updated} branches fast-forwarded, ${total_uptodate} already up-to-date, ${total_cannot} could not ff, ${total_noup} without upstream, ${total_fetch_failed} fetch failures"
+
+    if [[ ${#problems[@]} -gt 0 ]]; then
+        echo ""
+        printf "${BOLD}Branches needing attention:${RST}\n"
+        local p
+        for p in "${problems[@]}"; do
+            printf "  ${RED}*${RST} %s\n" "$p"
+        done
+    fi
+}
+
 cmd_dirty() {
     _dirty() {
         local group="$1" name="$2" url="$3" branch="$4" source="$5"
-        local dir="$WORKSPACE/$group/$name"
+        local dir; dir=$(_repo_dir "$group" "$name")
         [[ -d "$dir/.git" || -d "$dir/refs" ]] || return 0
         [[ -n "$(git -C "$dir" status --porcelain 2>/dev/null)" ]] || return 0
         printf "  ${YLW}%s${RST}\n" "$group/$name"
@@ -263,7 +426,7 @@ cmd_dirty() {
 cmd_unpushed() {
     _unpushed() {
         local group="$1" name="$2" url="$3" branch="$4" source="$5"
-        local dir="$WORKSPACE/$group/$name"
+        local dir; dir=$(_repo_dir "$group" "$name")
         [[ -d "$dir/.git" || -d "$dir/refs" ]] || return 0
         local up count
         up=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null) || return 0
@@ -277,7 +440,7 @@ cmd_unpushed() {
 cmd_behind() {
     _behind() {
         local group="$1" name="$2" url="$3" branch="$4" source="$5"
-        local dir="$WORKSPACE/$group/$name"
+        local dir; dir=$(_repo_dir "$group" "$name")
         [[ -d "$dir/.git" || -d "$dir/refs" ]] || return 0
         local up count
         up=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null) || return 0
@@ -291,7 +454,7 @@ cmd_behind() {
 cmd_branches() {
     _branches() {
         local group="$1" name="$2" url="$3" branch="$4" source="$5"
-        local dir="$WORKSPACE/$group/$name"
+        local dir; dir=$(_repo_dir "$group" "$name")
         [[ -d "$dir/.git" || -d "$dir/refs" ]] || return 0
         local cur
         cur=$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null || echo "detached")
@@ -307,7 +470,7 @@ cmd_exec() {
 
     _exec() {
         local group="$1" name="$2" url="$3" branch="$4" source="$5"
-        local dir="$WORKSPACE/$group/$name"
+        local dir; dir=$(_repo_dir "$group" "$name")
         [[ -d "$dir" ]] || return 0
         printf "${BOLD}── %s ──${RST}\n" "$group/$name"
         (cd "$dir" && "${EXTRA[@]}")
@@ -384,7 +547,7 @@ cmd_strip_review_needed() {
 
     _strip() {
         local group="$1" name="$2" url="$3" branch="$4" source="$5"
-        local dir="$WORKSPACE/$group/$name"
+        local dir; dir=$(_repo_dir "$group" "$name")
         [[ -d "$dir/.git" || -d "$dir/refs" ]] || return 0
 
         if ! _has_review_needed "$dir"; then
@@ -415,6 +578,7 @@ case "$CMD" in
     status)              cmd_status              ;;
     fetch)               cmd_fetch               ;;
     pull)                cmd_pull                ;;
+    sync)                cmd_sync                ;;
     dirty)               cmd_dirty               ;;
     unpushed)            cmd_unpushed            ;;
     behind)              cmd_behind              ;;

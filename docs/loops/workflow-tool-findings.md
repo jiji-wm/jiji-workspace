@@ -94,5 +94,3 @@ Workflow resume is **same-session only** (`resumeFromRunId`); the docs' fallback
 | `/workflows` task tracking | ✅ | ❌ (uses bg-notify + inline summaries) |
 
 For an operator who keeps a session open and intervenes, the workflow's wins (task tracking, marginal context-hygiene edge) do not justify forfeiting single-source-of-truth, intervene-and-continue, and the only path that can use `SendMessage` per-agent resume. **Verdict: adopt the conversational `/jiji:loop`; retire `/jiji:flow`.**
-
-Ported as /jiji:loop in this workspace.

@@ -6,11 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is the **jiji** development workspace. It is a git repo that tracks workspace-level docs and scripts. The actual source code for the jiji compositor (hard-fork of niri) and its tools lives in nested repos (not tracked by this repo).
 
-Jiji is a hard fork of niri. The hard-fork strategy DD lives in the private overlay (`private/docs/jiji-fork.md`); see [Private overlay](#private-overlay) below.
+Jiji is a hard fork of niri. The hard-fork strategy DD lives in the specs overlay (`specs/<owner>/jiji-fork.md`); see [Specs overlay](#specs-overlay) below.
 
 ### Nested repos (gitignored under `repos/`)
 
-All repos are tracked by `repos.conf` and managed by the `workspace` script (`workspace status`, `workspace clone`, etc.). Run `./tools/workspace-install/install.sh && ./tools/cdr/install.sh` once to enable `workspace` and `cdr` from any cwd.
+All repos are tracked by `repos.conf` and managed by the `workspace` script (`workspace status`, `workspace clone`, `workspace sync`, etc.). Run `./setup.sh` once after cloning (chains the tool installers + `scripts/clone.sh`; `--plugins` adds the Claude Code plugin set) to enable `workspace` and `cdr` from any cwd.
 
 #### Compositor
 - **`repos/jiji/`** — The jiji compositor (hard-fork of niri, [`jiji-wm/jiji`](https://github.com/jiji-wm/jiji)). Tracks `niri-wm/niri` upstream as a git remote for periodic rebases. Has its own `CLAUDE.md`. The source rename has landed: `Cargo.toml` is `[package] name = "jiji"`, the binary is `jiji`, the sub-crates are `jiji-ipc` / `jiji-config` / `jiji-visual-tests`, and the IPC env var is `$JIJI_SOCKET`. Still deferred: the `Niri` struct / `crate::niri` code-identifier surface.
@@ -33,15 +33,15 @@ All repos are tracked by `repos.conf` and managed by the `workspace` script (`wo
 #### Awesome list
 - **`repos/reference/awesome-niri/`** — Curated awesome-list for niri ([niri-wm/awesome-niri](https://github.com/niri-wm/awesome-niri)). Community contribution to upstream niri — keeps the niri name.
 
-### Private overlay
+### Specs overlay
 
-Internal design docs, specs, plans, and live development status are **not** in this public repo. They live in a private overlay repo cloned into the gitignored `private/` directory (same mechanism as `repos/`). Without it, `private/` is simply absent and everything degrades gracefully. It holds:
+Internal design docs, specs, plans, and live development status are **not** in this public repo. They live in an access-restricted specs repo registered in `repos.conf` under the special `_root` group, which places it directly at the gitignored `specs/` directory (a stable path for cross-references from `loops.conf`, agents, and docs). Inside, content is owner-scoped by GitHub username (`specs/<github-user>/…`, `specs/_shared/…`). Without access the clone is skipped gracefully, `specs/` is simply absent, and everything degrades gracefully. It holds:
 
-- `private/docs/jiji-fork.md` — hard-fork strategy DD.
-- `private/docs/activities/` — compositor Activities feature design + exploratory analyses (the compositor loop's owning DD).
-- `private/docs/launcher/` — launcher initiative.
-- `private/docs/superpowers/` — specs + plans.
-- `private/docs/status.md` — live per-loop development status (Resume cues), maintained by the scribe.
+- `specs/<owner>/jiji-fork.md` — hard-fork strategy DD.
+- `specs/<owner>/activities/` — compositor Activities feature design + exploratory analyses (the compositor loop's owning DD).
+- `specs/<owner>/launcher/` — launcher initiative.
+- `specs/<owner>/superpowers/` — specs + plans.
+- `specs/<owner>/status.md` — live per-loop development status (Resume cues), maintained by the scribe.
 
 ### Scripts
 
@@ -81,7 +81,7 @@ cargo clippy --all --all-targets
 
 ### Compositor
 
-The compositor's design docs (hard-fork strategy, the Activities feature design, and exploratory analyses) live in the **private overlay** under `private/docs/` — `jiji-fork.md`, `activities/design.md` (the compositor loop's owning DD, workspace-as-atom model), `activities/column-sharing.md`, `activities/persistence-forking.md`.
+The compositor's design docs (hard-fork strategy, the Activities feature design, and exploratory analyses) live in the **specs overlay** under `specs/<owner>/` — `jiji-fork.md`, `activities/design.md` (the compositor loop's owning DD, workspace-as-atom model), `activities/column-sharing.md`, `activities/persistence-forking.md`.
 
 ### CLI (sibling repos)
 
@@ -90,7 +90,7 @@ The compositor's design docs (hard-fork strategy, the Activities feature design,
 
 ## Active work
 
-Live per-loop development status (Resume cues, phase/stage progress, test baselines) lives in the private overlay at `private/docs/status.md`. It's maintained by the loop scribe and is not part of the public skeleton.
+Live per-loop development status (Resume cues, phase/stage progress, test baselines) lives in the specs overlay at `specs/<owner>/status.md`. It's maintained by the loop scribe and is not part of the public skeleton.
 
 ## Sub-agent loops
 
@@ -102,7 +102,7 @@ Three drivers: typed `/jiji:land-subphase <target>` (interactive, one sub-phase 
 
 Fork-specific coding conventions live in `repos/jiji/CLAUDE.md`. CLI conventions live in the jiji-activities repo's `CLAUDE.md`.
 
-When starting a new compositor-side feature, create its design doc under `private/docs/` and update `private/docs/status.md`. New CLI features go in the relevant tool repo and update its DD.
+When starting a new compositor-side feature, create its design doc under `specs/<owner>/` and update `specs/<owner>/status.md`. New CLI features go in the relevant tool repo and update its DD.
 
 ## Compositor Architecture (key concepts)
 
@@ -111,7 +111,6 @@ Crate structure, the post-Phase-0b-2 `Layout`/`Monitor`/`Workspace` hierarchy, k
 ## Important
 
 - Each subdirectory is its own git repo — always `cd` into the correct one before running git commands. Read the subdirectory's `CLAUDE.md` before working in it.
-- The parent directory (`de/`) contains many niri ecosystem tools organized by category. See `../CLAUDE.md` for a full inventory.
 - The curated list with upstream links lives in `repos/reference/awesome-niri/README.md`.
 
 ## After any config or tooling changes
@@ -119,20 +118,18 @@ Crate structure, the post-Phase-0b-2 `Layout`/`Monitor`/`Workspace` hierarchy, k
 When you modify desktop config files (waybar, niri/jiji, swaync, etc.) or install new packages/tools:
 
 1. **Update `INSTALL-debian.md`** — Add any new packages, build deps, or setup steps so the install guide stays complete and reproducible on a fresh machine.
-2. **Update `keybindings.md`** — If keybindings changed, keep the reference doc in sync.
-3. **Update chezmoi** — Run `chezmoi add <changed files>` to sync config files into the chezmoi source repo (`~/.local/share/chezmoi/`). Then commit the changes there. This ensures configs are deployable to other machines via `chezmoi apply`.
+2. **Update the dotfiles keybinding reference** — If keybindings changed, keep `docs/jiji-keybindings.md` in the chezmoi repo (`~/.local/share/chezmoi/`) in sync; the maintainer's desktop-stack doc `docs/jiji-desktop-setup.md` lives there too.
+3. **Update the dotfiles repo** (skip if the operator doesn't manage dotfiles this way) — the maintainer uses chezmoi: `chezmoi add <changed files>` syncs config files into the chezmoi source repo (`~/.local/share/chezmoi/`), committed separately there, so configs are deployable to other machines via `chezmoi apply`.
 4. **System-level configs (keyd, udev)** — These can't be managed by `chezmoi add`. They're deployed by the chezmoi install script (`run_onchange_install-packages.sh.tmpl`). Update the embedded config in that script and the chezmoi README when changing `/etc/keyd/default.conf` or similar files.
 
-Both repos (this one and chezmoi at `~/.local/share/chezmoi/`) need separate commits.
-
-Both steps are required before committing — the goal is that the full desktop setup is reproducible from the install doc + chezmoi repo alone.
+The goal is that the full desktop setup stays reproducible from the install doc + the operator's dotfiles repo alone; the workspace repo and the dotfiles repo need separate commits.
 
 ## After CLI surface changes (jiji compositor, jiji-activities)
 
 When you add, remove, or rename a subcommand or flag in **the jiji compositor** (`repos/jiji/src/cli.rs`) or **jiji-activities** (`repos/jiji-activities/src/cli.rs`):
 
 1. **Reinstall the binary via `./scripts/install.sh <target>`** (e.g. `jiji`, `jiji-activities`, `jiji-do`). The installed binary is what emits its own `completions <shell>` output, so a stale install means a stale completion file. Since 2026-06-06 the install script also regenerates the local fish completion (`~/.config/fish/completions/<bin>.fish`) from the freshly installed binary, so the local machine never needs a separate completion step. (A bare `cargo install --path . --offline` still works but skips the completion regen — prefer the script.)
-2. **Bump `# hash:` in chezmoi's `run_onchange_install-packages.sh.tmpl`.** This forces the `run_onchange_` script to re-fire on the next `chezmoi apply`, regenerating the fish completions (`jiji.fish`, `jiji-activities.fish`, `jiji-do.fish`) against the installed binaries. With step 1 handling the local machine, this matters for **other/fresh machines** — and chezmoi remains the owner of the stale pre-rename file sweeps (`niri.fish`, `niri-activities.fish`).
+2. **Bump `# hash:` in chezmoi's `run_onchange_install-packages.sh.tmpl`** (maintainer's dotfiles repo; skip without it). This forces the `run_onchange_` script to re-fire on the next `chezmoi apply`, regenerating the fish completions (`jiji.fish`, `jiji-activities.fish`, `jiji-do.fish`) against the installed binaries. With step 1 handling the local machine, this matters for **other/fresh machines** — and chezmoi remains the owner of the stale pre-rename file sweeps (`niri.fish`, `niri-activities.fish`).
 3. **For jiji-activities only:** if the change adds, renames, or removes a subcommand whose first positional is an *existing* activity name, also update `FISH_SINGLE_ARG_VERBS` in `repos/jiji-activities/src/completions.rs`. **Read the `Cmd` variant shape before deciding** — a unit variant (`AssignWorkspace,`) means no positional, so it must NOT go in the dynamic set even if its description talks about "one or more activities" (those are picker rows, not CLI args). New-name verbs (`create`-like) also stay out. `clap_complete`'s base output auto-tracks the clap-derive surface so the static parts of the completion never go stale; only the dynamic activity-name lines need manual sync. See `repos/jiji-activities/CLAUDE.md` for the full discipline.
 
 The compositor's completion is fully `clap_complete`-derived (no manual augmentation), so step 3 only applies to jiji-activities.

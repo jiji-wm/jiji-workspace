@@ -47,7 +47,7 @@ Model selection: frontmatter `model: sonnet` resolves to `claude-sonnet-4-6[1m]`
 - **Commit messages: sparse, abstract WHAT + WHY.** Subject plus 0–3 short paragraphs describing what changed (abstractly, not line-by-line) and why. Do **not** include spec-file paths, phase/box numbers, finding numbers, review-cycle wording, other commit hashes, or the loop machinery that produced the commit. The diff is the canonical line-level "what".
 - If a gate fails unexpectedly, **report the failure output** — do not edit the manifest or code just to make a linter quiet if that masks a real problem.
 - **Behavioral verification is the human's job (the end-to-end box).** You cannot load the extension into a live Firefox or drive a real restore — that is the manual P5-style box, human-only. Get the static gates green and the contracts exact; say plainly in your report what still needs a live load to confirm.
-- **Never modify the DD or the workspace `CLAUDE.md`.** Flipping `[ ]` → `[x]`, appending `Reviewed:` blocks, and editing the Resume cues in `private/docs/status.md` are the scribe's job. Do not touch `*.md` files in `docs/` or the repo root — those belong to the scribe or the human. (Editing `extension/README.md` is allowed only if the spec explicitly scopes it.)
+- **Never modify the DD or the workspace `CLAUDE.md`.** Flipping `[ ]` → `[x]`, appending `Reviewed:` blocks, and editing the Resume cues in `specs/<owner>/status.md` are the scribe's job. Do not touch `*.md` files in `docs/` or the repo root — those belong to the scribe or the human. (Editing `extension/README.md` is allowed only if the spec explicitly scopes it.)
 
 ## Output format
 

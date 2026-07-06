@@ -6,7 +6,7 @@ A practical reference for using the unified `jiji-*` subagents and flat `/jiji:*
 
 | target | language | code repo | DD | DD commit repo |
 |---|---|---|---|---|
-| `compositor` | rust | `repos/jiji` | `private/docs/activities/design.md` | private overlay (`private`) |
+| `compositor` | rust | `repos/jiji` | `specs/<owner>/activities/design.md` | specs overlay (`specs`) |
 | `cli` | rust | `repos/jiji-activities` | `repos/jiji-activities/docs/design.md` | `repos/jiji-activities` |
 
 The command resolves the target against `loops.conf`, dispatches `jiji-<language>-implementer` (`rust` → `jiji-rust-implementer`, `js` → `jiji-js-implementer`), and the scribe commits the DD change in the target's `dd_commit_repo`. **Per-codebase discipline lives in each target repo's `CLAUDE.md`** — the compositor's invariant-check + test-bucket arithmetic in `repos/jiji/CLAUDE.md`, the CLI's `assert_cmd`/exit-code/fuzzel rigor in `repos/jiji-activities/CLAUDE.md`, the extension's marker/protocol contracts in `repos/jiji-firefox-workspaces/extension/CLAUDE.md`. The agents read it; they don't bake it.
@@ -117,8 +117,6 @@ That's its own sub-phase. The implementer lands a rev bump as a standalone commi
 Don't. `/clear` first, then run `/jiji:next-subphase <target>` fresh. Long-context retrieval on Opus 4.7 is noticeably worse than 4.6; don't let sessions sprawl.
 
 ## Cost / effort quick reference
-
-Model/effort assignments:
 
 | Agent | Model | Effort | Why |
 |---|---|---|---|

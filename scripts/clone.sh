@@ -67,15 +67,11 @@ clone_fork "git@github.com:jiji-wm/jiji-hamster.git" \
 # Curated niri awesome-list (community contribution to upstream niri).
 clone_repo "git@github.com:niri-wm/awesome-niri.git" "$WORKSPACE_DIR/repos/reference/awesome-niri"
 
-# Private overlay (DDs/specs/plans/status). Optional: requires access; public
-# contributors skip it and work with an empty private/ (degrades gracefully).
-if [ ! -d "$WORKSPACE_DIR/private/.git" ]; then
-    echo "Cloning private overlay -> private/ (skipped if no access)"
-    git clone "git@github.com:jiji-wm/jiji-specs-private.git" "$WORKSPACE_DIR/private" \
-        || echo "Private overlay not cloned (no access) — continuing without it."
-else
-    echo "Already cloned: $WORKSPACE_DIR/private"
-fi
+# Specs overlay (DDs/specs/plans/status). Optional: requires access; public
+# contributors skip it and work without specs/ (degrades gracefully). The
+# repo URL lives in repos.conf under the `_root` group; `workspace clone`
+# treats a failed _root clone as a graceful skip, not an error.
+"$WORKSPACE_DIR/workspace" clone -g _root
 
 # Enable the workspace's shared git hooks (.githooks/) in the repos that
 # want them (idempotent — also repairs existing clones). The hooks live

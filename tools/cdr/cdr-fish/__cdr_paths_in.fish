@@ -7,7 +7,8 @@ function __cdr_paths_in --argument-names ws_root rel_prefix \
             gsub(/^[[:space:]]+|[[:space:]]+$/, "", $1)
             gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2)
             if ($1 == "") next
-            printf "%s/%s%s/%s\n", root, rel, $1, $2
+            if ($1 == "_root") printf "%s/%s\n", root, $2
+            else               printf "%s/%s%s/%s\n", root, rel, $1, $2
         }
     ' "$ws_root/repos.conf"
 end
