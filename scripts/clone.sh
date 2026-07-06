@@ -77,5 +77,20 @@ else
     echo "Already cloned: $WORKSPACE_DIR/private"
 fi
 
+# Enable the workspace's shared git hooks (.githooks/) in the repos that
+# want them (idempotent — also repairs existing clones). The hooks live
+# once in this repo; each tool repo points at them with a core.hooksPath
+# relative to its own worktree root, which is why it's spelled "../../.githooks"
+# rather than an absolute path — it keeps working if the whole workspace is
+# moved or renamed as a unit.
+HOOKED_REPOS="jiji jiji-activities jiji-do jiji-firefox-workspaces jiji-hamster-bridge"
+for name in $HOOKED_REPOS; do
+    d="$WORKSPACE_DIR/repos/$name"
+    if [ -d "$d/.git" ]; then
+        git -C "$d" config core.hooksPath ../../.githooks
+        echo "git hooks enabled: $d (-> workspace .githooks/)"
+    fi
+done
+
 echo ""
 echo "All repos cloned."

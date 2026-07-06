@@ -1,13 +1,14 @@
 # jiji workspace
 
-Development workspace for **jiji**, a hard-fork of the [niri](https://github.com/niri-wm/niri) Wayland compositor. Contains workspace-level docs, build/install scripts, and references to nested source repos.
+Development workspace for **jiji**, a hard-fork of the [niri](https://github.com/niri-wm/niri) Wayland compositor. Contains workspace-level docs, build/install scripts, and references to nested source repos. Hosted at [jiji-wm/jiji-workspace](https://github.com/jiji-wm/jiji-workspace); the code repos live in the [jiji-wm](https://github.com/jiji-wm) org.
 
 Jiji is a hard fork (binary, env vars, IPC crate names, resource files all renamed to `jiji-*`) that tracks niri upstream as a git remote for periodic rebases. The hard-fork strategy and rename timeline are documented in the private overlay (`private/docs/jiji-fork.md`; see [Private overlay](#private-overlay)).
 
 ## Setup
 
 ```sh
-# Clone all nested repos (registry: repos.conf)
+# Clone all nested repos (registry: repos.conf); also points each
+# tool repo's git hooks at this repo's shared .githooks/
 ./scripts/clone.sh
 
 # Build and install
