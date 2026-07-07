@@ -125,7 +125,7 @@ Don't. `/clear` first, then run `/jiji:next-subphase <target>` fresh. Long-conte
 | jiji-fixer | sonnet | *(frontmatter default)* | Mechanical squash is cheap |
 | jiji-scribe | sonnet | *(frontmatter default)* | Voice is well-established, pattern-matching |
 
-`sonnet` resolves to `claude-sonnet-4-6[1m]` (Sonnet 4.6 + 1M context) via the workspace env var `ANTHROPIC_DEFAULT_SONNET_MODEL`. Only the implementer's *model* is chosen per-spec by the command (from the `## Complexity` token: `Deep` → opus, else sonnet); `effort` is governed only by frontmatter. The architect is the only `xhigh` consumer in a typical run.
+`sonnet` resolves via the workspace env var `ANTHROPIC_DEFAULT_SONNET_MODEL` (currently `claude-sonnet-5[1m]`, Sonnet 5 + 1M context — see `.claude/settings.json`). Only the implementer's *model* is chosen per-spec by the command (from the `## Complexity` token: `Deep` → opus, else sonnet); `effort` is governed only by frontmatter. The architect is the only `xhigh` consumer in a typical run.
 
 **Cut implementer to sonnet** is the default; **escalate to opus** is automatic when the architect tags `## Complexity: Deep` (genuinely hard reasoning the spec can't pre-resolve). Manual override at gate 1 (`go, but use opus` / `go, but use sonnet`) if you disagree with the tag. Don't cut the architect.
 

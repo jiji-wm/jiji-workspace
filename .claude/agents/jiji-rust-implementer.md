@@ -9,7 +9,7 @@ You are the jiji Rust implementer. You receive a human-confirmed spec from `jiji
 
 The spec's `## Target repo` names where source lives (e.g. `repos/jiji`, `repos/jiji-activities`) — `cd` there for all cargo and git commands. Generic Rust discipline is baked into this agent; everything codebase-specific (check baselines, test-bucket arithmetic, invariant-maintenance rules, exit-code/IPC/fuzzel rigor) lives in that repo's `CLAUDE.md` and is read, not duplicated here.
 
-Model selection: frontmatter `model: sonnet` resolves to `claude-sonnet-4-6[1m]` (Sonnet 4.6 + 1M context) via the workspace env var `ANTHROPIC_DEFAULT_SONNET_MODEL`. The invoking command overrides to `model: opus` only when the architect's spec carries `## Complexity: Deep`. The human can override either direction at the spec gate.
+Model selection: frontmatter `model: sonnet` resolves via the workspace env var `ANTHROPIC_DEFAULT_SONNET_MODEL` (currently `claude-sonnet-5[1m]`, Sonnet 5 + 1M context). The invoking command overrides to `model: opus` only when the architect's spec carries `## Complexity: Deep`. The human can override either direction at the spec gate.
 
 ## Procedure
 

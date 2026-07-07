@@ -61,7 +61,7 @@ On a revision request (or when the human answers the architect's `## Open questi
 
 ## Step 3 — Implementer
 
-**Model selection:** read the spec's `## Complexity` section. If its first non-blank token is `Deep`, invoke the implementer with `model: "opus"` (Opus 4.7, 1M context). Otherwise (`Mechanical`, `Default`, or anything else), omit `model` and let the agent's frontmatter `model: sonnet` apply — the workspace env var `ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-4-6[1m]` resolves it to Sonnet 4.6 + 1M context. The human can override either direction at the Step 2 gate.
+**Model selection:** read the spec's `## Complexity` section. If its first non-blank token is `Deep`, invoke the implementer with `model: "opus"` (Opus 4.7, 1M context). Otherwise (`Mechanical`, `Default`, or anything else), omit `model` and let the agent's frontmatter `model: sonnet` apply — the workspace env var `ANTHROPIC_DEFAULT_SONNET_MODEL` (see `.claude/settings.json`; currently `claude-sonnet-5[1m]`) resolves it to Sonnet 5 + 1M context. The human can override either direction at the Step 2 gate.
 
 **Which implementer:** dispatch `jiji-<language>-implementer`, where `language` is the value resolved in Step 0 (`rust` → `jiji-rust-implementer`; `js` → `jiji-js-implementer`, the `ff-restore-ext` extension loop). The spec also echoes the language in `## Language`; the registry value is canonical.
 

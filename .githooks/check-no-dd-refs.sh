@@ -3,9 +3,10 @@
 # "design.md", Box N, Appendix X, "Reviewed: <date>") in commit messages
 # and code lines.
 #
-# Pattern set mirrors scripts/rewrite-commit-refs.py — case-sensitive on the
-# distinctive caps (Phase, DD) so lowercase English ("animation phase 2",
-# "let dd = ...") is not flagged.
+# Pattern set mirrors the commit-ref rewrite script in the specs overlay
+# (specs/scripts/rewrite-commit-refs.py; absent without overlay access) —
+# case-sensitive on the distinctive caps (Phase, DD) so lowercase English
+# ("animation phase 2", "let dd = ...") is not flagged.
 #
 # Usage:
 #   check-no-dd-refs.sh --message <file>   commit-msg hook ($1 = COMMIT_EDITMSG)

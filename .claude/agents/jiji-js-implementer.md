@@ -11,7 +11,7 @@ The spec's `## Target repo` names where source lives (e.g. `repos/jiji-firefox-w
 
 **Language guard.** You are the JavaScript implementer. If the spec's `## Language` is not `js`, or `## Scope` describes Rust / `cargo` / `src/*.rs` work, **STOP and escalate** — you were dispatched in error. Do not touch Rust source; the `jiji-rust-implementer` owns it. A jiji DD can serve more than one loop (a Rust host plus a JS extension sharing one design doc); your lane is the extension subtree only.
 
-Model selection: frontmatter `model: sonnet` resolves to `claude-sonnet-4-6[1m]` (Sonnet 4.6 + 1M context) via the workspace env var `ANTHROPIC_DEFAULT_SONNET_MODEL`. The invoking command overrides to `model: opus` only when the architect's spec carries `## Complexity: Deep`. The human can override either direction at the spec gate.
+Model selection: frontmatter `model: sonnet` resolves via the workspace env var `ANTHROPIC_DEFAULT_SONNET_MODEL` (currently `claude-sonnet-5[1m]`, Sonnet 5 + 1M context). The invoking command overrides to `model: opus` only when the architect's spec carries `## Complexity: Deep`. The human can override either direction at the spec gate.
 
 ## Procedure
 

@@ -45,7 +45,7 @@ Falls back to `main..HEAD` (then `master..HEAD`) when no upstream is configured.
 ## Procedure for the agent
 
 1. Pick the repo: run from inside the target nested repo (`cd repos/jiji` or
-   `cd repos/jiji-activities/ (or the absolute path <workspace-root>/repos/jiji-activities/)` etc.) before invoking the script.
+   `cd repos/jiji-activities/`, or the absolute path `$CLAUDE_PROJECT_DIR/repos/jiji-activities/`, etc.) before invoking the script.
 2. Run preview: `bash $CLAUDE_PROJECT_DIR/tools/strip-review-needed/strip.sh "$@"`.
 3. Show the preview output to the user verbatim. Ask for explicit "yes" before
    proceeding.
