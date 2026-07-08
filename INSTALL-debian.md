@@ -19,7 +19,7 @@ You also need Rust (stable, >= 1.85). Install via [rustup](https://rustup.rs/) i
 ./scripts/install.sh     # installs to /usr/local/ and /etc/systemd/user/
 ```
 
-Both scripts take an optional target (`--targets` lists them): `upstream` (default) and `jiji` install the compositor system-wide as above; the cargo tool targets (`jiji-activities`, `jiji-do`, `jiji-firefox-workspaces`, `jiji-hamster-bridge`) are installed per-user into `~/.cargo/bin` via `cargo install` (plus the tool's systemd user unit, when its repo ships one under `systemd/`); `jiji-hamster` (Python/GTK, **waf** build) installs system-wide via `sudo ./waf install` — see its section below.
+Both scripts take an optional target (`--targets` lists them): `upstream` (default) and `jiji` install the compositor system-wide as above; the cargo tool targets (`jiji-activities`, `jiji-do`, `jiji-firefox-workspaces`, `jiji-hamster-bridge`, `jiji-kbd-indicator`) are installed per-user into `~/.cargo/bin` via `cargo install` (plus the tool's systemd user unit, when its repo ships one under `systemd/`); `jiji-hamster` (Python/GTK, **waf** build) installs system-wide via `sudo ./waf install` — see its section below.
 
 This installs:
 
@@ -370,6 +370,33 @@ systemctl --user enable --now jiji-hamster-bridge.service
 Requires a jiji session (`jiji msg` event stream); on upstream niri the
 daemon idles (no activity events). Logs: `journalctl --user -u
 jiji-hamster-bridge`.
+
+### jiji-kbd-indicator (keyboard-state visual indicator)
+
+Recolors the focus ring and workspace background when Caps Lock is on or a
+non-default keyboard layout is active (with blended variants for remote
+windows), by pushing a runtime appearance override to jiji over its IPC
+(`set-appearance-override --layer keyboard`) — no config rewriting, no
+compositor reload. Replaces the legacy `layout-indicator.sh` config-rewrite
+daemon.
+
+```sh
+# 1. Binary + systemd user unit (user-local, no sudo)
+./scripts/install.sh jiji-kbd-indicator
+
+# 2. Palette — deployed by chezmoi
+#    (~/.config/jiji-kbd-indicator/palette.toml: per-state colors, ring
+#    width, remote-window blend ratio + title matchers. A missing or
+#    invalid palette is a hard startup error — no built-in default.)
+chezmoi apply
+
+# 3. Enable (once; later installs auto-restart a running daemon)
+systemctl --user enable --now jiji-kbd-indicator.service
+```
+
+Requires a jiji session (compositor build with the appearance-override IPC).
+Colors are changed by editing the palette and restarting the service (no
+hot-reload). Logs: `journalctl --user -u jiji-kbd-indicator`.
 
 ## Upgrading
 
