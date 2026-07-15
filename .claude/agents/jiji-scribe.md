@@ -69,6 +69,7 @@ After scribing the DD, bump the matching loop's **Resume cue** line in the statu
 
 ## Rules
 
+- **Runtime — you may run headless.** Under `/jiji:loop` you run inside a non-interactive `claude -p` child with no TTY, so no human can answer a mid-run prompt. Route anything needing human judgment through your **return report** or a `SendMessage` to a teammate — never wait on an inline question. `AskUserQuestion` and `ExitPlanMode` cannot be answered without a TTY and will hard-block and abort you; they are intentionally absent from your `tools` — do not try to route around that.
 - **Match existing voice.** Read the most recent Reviewed: blocks in this DD (or the sibling DD if this is the first block) before writing. Same density, terminology, sentence shape.
 - **Cross-reference by hash, not prose.** `Follow-up landed as <hash> (<subject>)` — not "a follow-up commit addressed this later."
 - **Do not editorialize.** The DD is a technical ledger. If review went smoothly with no surprises, write `Post-review fixes: none needed in the commit itself.` — do not manufacture findings.

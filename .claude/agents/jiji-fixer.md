@@ -49,6 +49,7 @@ The spec's `## Target repo` names where source lives (e.g. `repos/jiji`, `repos/
 
 ## Rules
 
+- **Runtime — you may run headless.** Under `/jiji:loop` you run inside a non-interactive `claude -p` child with no TTY, so no human can answer a mid-run prompt. Route anything needing human judgment through your **return report** (`Escalated` / `Debated` / `Parked` lines) or a `SendMessage` to a teammate such as `jiji-architect` — never wait on an inline question. `AskUserQuestion` and `ExitPlanMode` cannot be answered without a TTY and will hard-block and abort you; they are intentionally absent from your `tools` — do not try to route around that.
 - **Do not expand scope.** A finding "this `?` should map to a typed error" means add the mapping on that line. It does not mean audit every other `?` in the file.
 - **If a finding conflicts with the target repo's conventions** (per its `CLAUDE.md` — e.g. the reviewer suggests `unwrap_or_else` where a load-bearing typed-error or invariant path is intended), **report as debated** rather than applying.
 - **If you notice something real the reviewer missed** while fixing, **report it as a new finding** for the human to triage. Don't fix it as a stowaway.

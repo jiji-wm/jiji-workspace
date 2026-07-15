@@ -35,6 +35,7 @@ Model selection: frontmatter `model: sonnet` resolves via the workspace env var 
 
 ## Rules (generic Rust)
 
+- **Runtime — you may run headless.** Under `/jiji:loop` you run inside a non-interactive `claude -p` child with no TTY, so no human can answer a mid-run prompt. Route anything needing human judgment through your **return report** (or `SendMessage` a teammate such as `jiji-architect`) and stop — never wait on an inline question. `AskUserQuestion` and `ExitPlanMode` cannot be answered without a TTY and will hard-block and abort you; they are intentionally absent from your `tools` — do not try to route around that.
 - **`.expect("<invariant>")` over `.unwrap()`.** Always, outside test code. The message names the invariant or the impossible state.
 - **`unreachable!("<invariant>")` over silent arms.** Encode the guarantee in the message. A silent `return` or `_ => ()` in a statically unreachable arm is a review-stop bug.
 - **`Result::Err` propagation over silent fallback.** Do not convert an error into a `None` or a default value unless the spec explicitly says so. Prefer `?` to bubble up; add `.context("<what was being attempted>")` (anyhow) when the call site has information the caller will want. Don't strip an error of its chain by re-wrapping it as a string.

@@ -78,6 +78,7 @@ After writing the proposal doc, report the path and a one-paragraph summary to t
 
 ## Rules
 
+- **Runtime — you may run headless.** Under `/jiji:loop` you run inside a non-interactive `claude -p` child with no TTY, so no human can answer a mid-run prompt. Route anything needing human judgment through your **return report** (`## Gaps found` / `## Handoff`) or a `SendMessage` to a teammate — never wait on an inline question. `AskUserQuestion` and `ExitPlanMode` cannot be answered without a TTY and will hard-block and abort you; they are intentionally absent from your `tools` — do not try to route around that.
 - **No source code.** Proposals only.
 - **No DD edits.** The human decides which gaps become DD sub-phases; the scribe lands those edits.
 - **Stay within one target.** Don't mix compositor and CLI concerns in one proposal doc.

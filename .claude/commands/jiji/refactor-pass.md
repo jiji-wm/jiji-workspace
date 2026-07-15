@@ -1,20 +1,33 @@
 ---
-description: Cross-phase cognitive-friction analysis for the jiji compositor and/or CLI loop. Reads landed code in its current state plus surrounding context, emits a proposal doc whose aim is lowering cognitive friction. Never writes source code; human triages before any proposal becomes a scheduled sub-phase.
+description: Cross-phase cognitive-friction analysis for the jiji compositor and/or CLI loop, followed by cooperative triage with the user, wiring of the scheduled batch (owning DD + loops.conf row + status.md), and a launch handoff. Never writes source code; nothing is scheduled without an explicit user decision.
 argument-hint: [compositor|cli|both, defaults to compositor]
 ---
 
-Invoke the `jiji-refactor-pass` subagent.
+Invoke the `jiji-refactor-pass` subagent, then drive the triage → wiring → launch flow with the user.
 
 Scope: $ARGUMENTS (blank = compositor). Pass the scope word (compositor, cli, or both) to the agent.
 
-The agent will:
-1. Read the workspace CLAUDE.md to orient on current phase state.
+**Step 1 — Analysis (agent).** The agent will:
+1. Read the workspace CLAUDE.md and `specs/<owner>/status.md` to orient on current phase state.
 2. Read the full active DD(s) and landed code in its current state (not just diffs).
 3. Read prior refactor-pass and architect-pass docs to avoid re-proposing resolved work.
-4. Synthesise proposals ordered by friction-reduction-per-diff-size.
-5. Write a proposal doc to `specs/<owner>/refactor-passes/YYYY-MM-DD-<scope>.md` with `human-reviewed: false`.
-6. Commit the doc and report back with proposal titles and handoff text.
+4. Synthesise proposals ordered by friction-reduction-per-diff-size, each with a **Recommendation** line (schedule/defer/reject — advisory).
+5. Write the proposal doc to `specs/<owner>/refactor-passes/YYYY-MM-DD-<scope>.md` with `human-reviewed: false` and commit it.
+6. Report back with per-proposal elaborations + recommendations and its handoff text.
 
-No code is written. No DDs are modified. The output is a proposal for the human to triage.
+No code is written and nothing is scheduled in this step.
 
-After the agent returns, surface its handoff text. The human's next action is reading the doc, marking each `Status:` line (`[x] scheduled / deferred / rejected`), flipping `human-reviewed: false` → `true`, and dropping scheduled proposals into the appropriate loop's DD as new sub-phases.
+**Step 2 — Cooperative triage (user).** Surface the agent's report. Walk the user through the proposals one by one — finding, proposed change, risk, recommendation — and collect a schedule / defer / reject decision for each. A blanket decision ("schedule everything") is valid; if a decision is ambiguous ("the cheap ones"), confirm it per-proposal before proceeding. Do not proceed to Step 3 with any proposal undecided.
+
+**Step 3 — Record + wire (agent, operator-directed).** Relay the user's decisions verbatim to the **same** `jiji-refactor-pass` agent via `SendMessage` resume (available when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`; it is set in `.claude/settings.json` env) — resuming preserves the agent's full analysis context for the wiring. The agent will:
+1. Flip the Status checkboxes to match, set `human-reviewed: true`, add a dated triage note, and commit the pass doc (specs repo).
+2. For the scheduled set only: author the batch owning DD at `specs/<owner>/<scope>-refactor-YYYY-MM.md` (house-style precedent: `compositor-refactor-<YYYY-MM>.md`), add the status.md section, add the `refactor`/`refactor-cli` row to `loops.conf`, and commit (DD + status.md in specs; loops.conf in the workspace repo).
+3. Verify the new row parses out of `loops.conf`.
+
+**Fallback (resume unavailable):** perform the same recording + wiring in this session, following the conventions in `.claude/agents/jiji-refactor-pass.md` steps 8–9. Resume is layered, never load-bearing.
+
+**Step 4 — Launch handoff.** Present the exact launch options to the user:
+- `/jiji:land-subphase <row>` — interactive, one phase per `go`/`scribe`.
+- `/jiji:loop <row> <N>` (or `scripts/loop-subphase.sh <row> <N>` detached) — autonomous chain for the leading mechanical phases.
+
+Include the agent's advice on which phases to keep on the interactive driver (render-path type changes, user-visible ordering transcriptions, anything near an open escalation) and which are safe to chain autonomously. Do not launch anything yourself — the user runs the driver.
