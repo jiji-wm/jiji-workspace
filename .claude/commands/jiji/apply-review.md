@@ -13,6 +13,8 @@ scripts/loops-registry.sh <target> | awk -F'|' '{print $3}'
 
 **Step 1:** Run `/pr-review-toolkit:review-pr` against HEAD of `<code_repo>`. The toolkit's orchestrator picks relevant reviewers automatically based on the diff (code-reviewer always; silent-failure-hunter when error-handling changes; comment-analyzer when comments/docstrings change; pr-test-analyzer when tests change; type-design-analyzer when new types are introduced).
 
+If those reviewers run **in parallel**, apply the *Reviewer isolation* contract from [`land-subphase.md`](land-subphase.md) (Step 4) verbatim — one private detached worktree per empirically-verifying reviewer, static-only reviewers reading via `git show` with no tree, `git -C <abs-path>` always, trees restored clean and removed afterwards. The toolkit grants every reviewer `Edit`/`Write`/`Bash` and creates no isolation itself, so a shared checkout plus sabotage verification will corrupt siblings' reads and can yield a false "this test is vacuous" verdict. Sequential runs don't need it.
+
 **Step 2:** Once review output is available, invoke the `jiji-fixer` subagent with that output. The fixer reads the spec's `## Target repo` + that repo's `CLAUDE.md` for classification context, then:
 
 - **Classifies each finding** as mechanical / scoped addition / architectural / debatable / park.

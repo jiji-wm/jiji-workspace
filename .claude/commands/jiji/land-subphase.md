@@ -73,6 +73,30 @@ Invoke the implementer with the confirmed spec. It produces commits at semantic 
 
 Run `/pr-review-toolkit:review-pr` against the new commit(s) in `<code_repo>`.
 
+### Reviewer isolation (mandatory whenever reviewers run in parallel)
+
+**The toolkit provides no isolation of its own.** Its agents carry no `tools:` frontmatter, so every one of them inherits `Edit` / `Write` / `Bash` and can write to whatever tree it is pointed at; nothing in the plugin mentions worktrees. Isolation exists only if *this* step's dispatch text creates it — and the plugin is vendored under `plugins/marketplaces/`, so don't try to fix it there (updates overwrite it).
+
+**Ask reviewers to verify empirically anyway.** Sabotage verification — break the pinned production code, confirm the test fails with the expected message, revert — is what catches the vacuous and false-green pins this codebase keeps producing, and it is worth far more than a passive read. But it makes reviewers *writers*, for minutes at a time, holding source that exists in no commit. Parallel fan-out plus empirical verification is what races; either alone is safe.
+
+**The contract, stated in every reviewer's own prompt:**
+
+- **One private worktree per empirically-verifying reviewer** — `git worktree add ~/.cache/jiji-review-worktrees/wt-<role>-<sha> <sha> --detach`. Per reviewer, **not** per review round: five agents in one shared tree reproduces the race one level down. Detach at the sha (a branch can't be checked out in two worktrees, and the commit under review shouldn't move anyway).
+- **Check where you're putting it before you build there.** The session scratchpad lives under `/tmp`, which is commonly a **tmpfs (RAM-backed)** — it is on the maintainer's setup. A `cargo test` tree for this workspace is multi-GB, so several concurrent builds there can exhaust it and pressure the whole system. Confirm with `df -h /tmp <candidate-path>` and prefer real disk (e.g. `~/.cache/…`). Check headroom against `target/` too — a mature checkout's `target/` can dwarf the free space, and every fresh worktree starts from a cold build.
+- **Keep the number of building trees small — one or two.** Cold `cargo` builds are the dominant cost of this whole contract, so give a tree only to reviewers whose findings actually depend on running something. If disk is tight, a shared `CARGO_TARGET_DIR` across the trees is a valid fallback: source isolation (the point of the contract) is preserved, at the price of a build lock serializing them and fingerprint thrash between differing sabotage states.
+- **Say it is theirs alone**, and require them to restore it clean (`git -C <wt> status --short` empty) before finishing. Tell them explicitly not to touch `<code_repo>`.
+- **`git -C <abs-path>` for every git command.** Agent bash cwd resets between calls, so a bare `git status` can silently report on the parent workspace repo and look reassuringly clean.
+- **Static-only reviewers get no worktree** — tell them to read via `git show <sha>:<path>` / `git diff <base>..<sha>`, which hit the immutable object store and are immune for free. Comment- and type-design-style reviews usually qualify; anything that builds, runs tests, or instruments a fixture does not. Fewer trees is cheaper: each one is a cold `cargo` build.
+- **Remove the worktrees** (`git worktree remove <path> --force`) once the round is done — they don't self-clean, and each carries its own `target/`.
+
+**What a detached worktree keeps and loses** (verified for `repos/jiji` on 2026-07-23 — re-check before assuming it holds for another target, and note some of it is repo-local rather than universal):
+
+- **Kept:** git hooks, including the DD-surrogate-token guard — worktrees share `$GIT_COMMON_DIR/hooks`, so `pre-commit`/`commit-msg`/`check-no-dd-refs.sh` still fire. `build.rs` is git-independent (it only `pkg_config`-probes libinput), so version stamping can't break on a detached HEAD. No submodules, no `rust-toolchain.toml`, no `.cargo/config.toml` — nothing untracked that the build needs.
+- **Lost:** `repos/jiji/.claude/` is gitignored, so `settings.local.json` is absent in a worktree; expect permission behavior to differ there. Also note `git worktree add` fires the `post-checkout` hook, which on this repo requires `git-lfs` on `PATH`.
+- **LSP/editor tooling** indexes the live checkout, not a `/tmp`-or-cache worktree. That's fine for reviewers (they read the commit and run cargo), but don't expect editor-grade navigation inside one.
+
+**Don't trust a contended tree's cargo results.** A reviewer that saw its tree move must disclaim its build/test output (structural findings grounded in `git show` still stand). Re-run the gate yourself in `<code_repo>` before Step 6 either way — the driver owns the authoritative green, not any reviewer.
+
 ## Step 5 — Fixer
 
 Invoke `jiji-fixer` with the review output. The fixer reads the spec's `## Target repo` + that repo's `CLAUDE.md`, classifies findings, and either:
@@ -94,7 +118,7 @@ After **every** fixer pass, decide whether the fixer's changes themselves warran
 - The fixer created one or more **follow-up commits** (new code/tests landed as their own commit).
 - Any squashed finding was a **Scoped addition** (new fixture/queue, new regression test, new helper, new logic surface beyond a single line).
 
-Targeted re-review: invoke `/pr-review-toolkit:review-pr` against **only the fixer's new/amended commit(s)**. If clean, continue to Step 6. If findings, loop back to Step 5 with that output as new fixer input.
+Targeted re-review: invoke `/pr-review-toolkit:review-pr` against **only the fixer's new/amended commit(s)**, under Step 4's *Reviewer isolation* contract (it applies to re-review rounds too — a single re-reviewer still sabotage-verifies, so it still needs its own tree). If clean, continue to Step 6. If findings, loop back to Step 5 with that output as new fixer input.
 
 **Cap at 3 re-review cycles total per sub-phase** (= up to 4 fixer passes). If a 4th would otherwise trigger, stop and raise to the human at Step 6 with a "fixer rounds not converging" note rather than looping further.
 
