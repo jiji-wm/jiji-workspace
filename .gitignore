@@ -22,3 +22,9 @@
 
 # Personal scratch todo list (feature ideas live in the specs overlay / tool DDs)
 /TODO.md
+
+# Overlay-coupled Claude command (canonical copy lives in the specs overlay)
+/.claude/commands/jiji/initiative.md
+
+# Session-notes directory (self-ignoring, but do not rely on that)
+/.remember/

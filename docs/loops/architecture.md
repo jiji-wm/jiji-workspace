@@ -26,7 +26,6 @@ All loops share **one** role-based agent set and **one** flat command set in thi
       scribe-review.md   → /jiji:scribe-review <target> [hashes]
       architect-pass.md  → /jiji:architect-pass [compositor|cli]
       refactor-pass.md   → /jiji:refactor-pass [compositor|cli|both]
-      initiative.md      → /jiji:initiative [status|note|done]
 ```
 
 The flat commands take **`<target>` as their first argument** and resolve it against the **loop-target registry** (`name|language|code_repo|dd_path|dd_commit_repo`). **The registry is authoritative** — this doc deliberately doesn't mirror the full target list. Illustrative rows: `compositor` (rust, `repos/jiji`), `cli` (rust, `repos/jiji-activities`), `ff-restore-ext` (js, the Firefox extension half). Adding a loop is one registry row (plus, only for a genuinely new language, one `jiji-<language>-implementer` — `js` added 2026-06-03 for the extension fork). Some targets share one DD split by component + language (see the registry comments); always name the box explicitly when landing against a shared DD.
