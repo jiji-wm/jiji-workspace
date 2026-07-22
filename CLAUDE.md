@@ -36,13 +36,16 @@ All repos are tracked by `repos.conf` and managed by the `workspace` script (`wo
 
 ### Specs overlay
 
-Internal design docs, specs, plans, and live development status are **not** in this public repo. They live in an access-restricted specs repo registered in `repos.conf` under the special `_root` group, which places it directly at the gitignored `specs/` directory (a stable path for cross-references from `loops.conf`, agents, and docs). Inside, content is owner-scoped by GitHub username (`specs/<github-user>/…`, `specs/_shared/…`). Without access the clone is skipped gracefully, `specs/` is simply absent, and everything degrades gracefully. It holds:
+Internal design docs, specs, plans, and live development status are **not** in this public repo. They live in an access-restricted specs repo registered in `repos.conf` under the special `_root` group, which places it directly at the gitignored `specs/` directory (a stable path for cross-references from `loops.conf`, agents, and docs). Inside, content is owner-scoped by GitHub username (`specs/<github-user>/…`, `specs/_shared/…`). Without access the clone is skipped gracefully, `specs/` is simply absent, and everything degrades gracefully.
+
+**Overlay path convention.** Docs, agents, and commands in this repo write overlay paths as `specs/<owner>/…` and never hardcode a username — the public repo says how the overlay is laid out, not who works in it. **Resolve `<owner>` at runtime by content, not by name**: the owner directory is the one holding `status.md` (`dirname specs/*/status.md`). Don't guess from the directory listing — `specs/` also carries non-owner directories (`_shared/`, the overlay's own `scripts/`). Reads may glob (`specs/*/status.md`); writes resolve the directory first. If `specs/` is absent you have no overlay access — say so rather than inventing a path. It holds:
 
 - `specs/<owner>/jiji-fork.md` — hard-fork strategy DD.
 - `specs/<owner>/activities/` — compositor Activities feature design + exploratory analyses (the compositor loop's owning DD).
 - `specs/<owner>/launcher/` — launcher initiative.
 - `specs/<owner>/superpowers/` — specs + plans.
 - `specs/<owner>/status.md` — live per-loop development status (Resume cues), maintained by the scribe.
+- `specs/<owner>/loops.conf` — the specs half of the loop-target registry: every row whose DD lives under `specs/`. See [Sub-agent loops](#sub-agent-loops) below.
 
 ### Scripts
 
@@ -95,7 +98,9 @@ Live per-loop development status (Resume cues, phase/stage progress, test baseli
 
 ## Sub-agent loops
 
-All loops share one role-based agent set and one flat command set in `.claude/`, driven by the `<target>` registry in `loops.conf`. The implementer specializes by language; architect / fixer / scribe are language-agnostic. Full layout (agents, commands, autonomous `--autonomous` mode, orchestrator halt conditions, and log locations) is in [`docs/loops/architecture.md`](docs/loops/architecture.md); the day-to-day workflow guide is [`docs/loops/jiji-loop.md`](docs/loops/jiji-loop.md).
+All loops share one role-based agent set and one flat command set in `.claude/`, driven by a `<target>` registry. The implementer specializes by language; architect / fixer / scribe are language-agnostic.
+
+**The registry is split by DD visibility.** `loops.conf` here carries the format documentation plus the rows whose DD ships inside its own tool repo (`cli`, `jiji-do`, `ff-restore*`, `kbd-indicator`); rows whose `dd_path` points into `specs/` live in the overlay at `specs/<owner>/loops.conf`, keeping unreleased initiative names, batch cadence, and the commits that repoint them out of this public repo. **Never parse either file directly** — `scripts/loops-registry.sh [target]` emits the merged registry and treats a name defined in both halves as a hard error (exit 3) rather than letting one silently shadow the other. Without overlay access the specs half is absent and the public rows still work. A new row goes wherever its DD lives. Full layout (agents, commands, autonomous `--autonomous` mode, orchestrator halt conditions, and log locations) is in [`docs/loops/architecture.md`](docs/loops/architecture.md); the day-to-day workflow guide is [`docs/loops/jiji-loop.md`](docs/loops/jiji-loop.md).
 
 Three drivers: typed `/jiji:land-subphase <target>` (interactive, one sub-phase per `go`/`scribe`), `scripts/loop-subphase.sh <target> [N]` (detached autonomous), and `/jiji:loop <target> [N]` (in-session autonomous chain — spawns the detached script one iteration at a time, summaries inline, halts return to the session). The retired `/jiji:flow` Workflow-tool attempt and why a conversational loop replaced it are written up in [`docs/loops/workflow-tool-findings.md`](docs/loops/workflow-tool-findings.md).
 

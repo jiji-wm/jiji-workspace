@@ -1,19 +1,19 @@
 ---
-description: jiji loop — architect plans, human confirms, implementer codes, review runs, fixer cleans up, scribe documents. First arg selects the target from loops.conf.
+description: jiji loop — architect plans, human confirms, implementer codes, review runs, fixer cleans up, scribe documents. First arg selects the target from the loop registry.
 argument-hint: <target> [--autonomous] [sub-phase name]
 ---
 
-Full sub-phase landing loop for any registered jiji loop target. One agent set serves every target; the **language** (resolved from `loops.conf`) chooses which implementer runs.
+Full sub-phase landing loop for any registered jiji loop target. One agent set serves every target; the **language** (resolved from the registry) chooses which implementer runs.
 
 ## Step 0 — Resolve the target
 
-Parse `$ARGUMENTS`: the **first token is the target** (e.g. `compositor`, `cli`). Validate it against `loops.conf` at the workspace root:
+Parse `$ARGUMENTS`: the **first token is the target** (e.g. `compositor`, `cli`). Resolve it from the workspace root:
 
 ```bash
-awk -F'|' -v t="<target>" '!/^#/ && $1==t {print "lang="$2" code="$3" dd="$4" ddrepo="$5}' loops.conf
+scripts/loops-registry.sh <target> | awk -F'|' '{print "lang="$2" code="$3" dd="$4" ddrepo="$5}'
 ```
 
-If the target is not in `loops.conf`, **stop** and report the valid targets (`awk -F'|' '!/^#/ && NF {print $1}' loops.conf`). Otherwise bind `language` (field 2), `code_repo` (field 3) for this run. Strip the target token from `$ARGUMENTS`; the remainder (after also stripping a leading `--autonomous`) is the sub-phase name passed to the architect.
+The resolver merges the public `loops.conf` with the specs overlay (`specs/<owner>/loops.conf`) — never parse either file directly. If it exits non-zero, **stop**: exit 1 means unknown (it prints the valid targets), exit 3 means the name is defined in both halves and one must be deleted. Otherwise bind `language` (field 2), `code_repo` (field 3) for this run. Strip the target token from `$ARGUMENTS`; the remainder (after also stripping a leading `--autonomous`) is the sub-phase name passed to the architect.
 
 ## Invocation modes
 
@@ -108,7 +108,7 @@ Report the decision in one line before proceeding: `Re-review: skipped (all mech
 
 ## Step 7 — Scribe
 
-Invoke `jiji-scribe` with input `target=<target>` plus all the sub-phase's commit hashes (amended primary + any follow-ups). The scribe resolves `dd_path` and `dd_commit_repo` from `loops.conf`, appends the `Reviewed: YYYY-MM-DD (<hash1>, <hash2>, ...).` paragraph to the target's DD, commits the DD change in `dd_commit_repo` with trailer `AI-Assisted: scribe (<model>)`, and bumps the status doc `specs/<owner>/status.md` Resume cue.
+Invoke `jiji-scribe` with input `target=<target>` plus all the sub-phase's commit hashes (amended primary + any follow-ups). The scribe resolves `dd_path` and `dd_commit_repo` from the registry, appends the `Reviewed: YYYY-MM-DD (<hash1>, <hash2>, ...).` paragraph to the target's DD, commits the DD change in `dd_commit_repo` with trailer `AI-Assisted: scribe (<model>)`, and bumps the status doc `specs/<owner>/status.md` Resume cue.
 
 ## Step 8 — Report
 

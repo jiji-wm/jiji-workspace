@@ -64,12 +64,12 @@ Internal design docs, specs, plans, and live development status are **not** in t
 - **[INSTALL-debian.md](INSTALL-debian.md)** — Reproducible Debian setup guide
 - **[CLAUDE.md](CLAUDE.md)** — Claude Code workspace instructions
 - **[docs/compositor-architecture.md](docs/compositor-architecture.md)** — Compositor layout/IPC architecture reference
-- **[docs/loops/jiji-loop.md](docs/loops/jiji-loop.md)** — Developer's guide to the unified DD-driven phase loop (all targets in `loops.conf`)
+- **[docs/loops/jiji-loop.md](docs/loops/jiji-loop.md)** — Developer's guide to the unified DD-driven phase loop (targets from `scripts/loops-registry.sh`)
 - Design DDs, specs, and live status live in the **specs overlay** (`specs/`, see above)
 
 ## Autonomous sub-phase orchestration
 
-The phase loops have an autonomous mode — `scripts/loop-subphase.sh <target> [N]` (targets from `loops.conf`) — that runs `N` sub-phases back-to-back via `claude -p`, each in a fresh session so context stays at peak quality. The orchestrator halts cleanly on architect open-questions, fixer non-convergence, phase completion, or any other human-decision condition; resume with `claude --resume <session-id>` (printed on halt). Default `N=4`. Logs at `~/.cache/jiji-loop/`. See **[docs/loops/architecture.md](docs/loops/architecture.md)** for halt conditions and rationale.
+The phase loops have an autonomous mode — `scripts/loop-subphase.sh <target> [N]` (targets from `scripts/loops-registry.sh`, which merges `loops.conf` with the specs overlay) — that runs `N` sub-phases back-to-back via `claude -p`, each in a fresh session so context stays at peak quality. The orchestrator halts cleanly on architect open-questions, fixer non-convergence, phase completion, or any other human-decision condition; resume with `claude --resume <session-id>` (printed on halt). Default `N=4`. Logs at `~/.cache/jiji-loop/`. See **[docs/loops/architecture.md](docs/loops/architecture.md)** for halt conditions and rationale.
 
 To follow the agent live while a sub-phase runs, use the companion **`scripts/loop-tail.sh`** — color-coded, one-line-per-event filter over the session JSONL transcript. Without args it tails the newest session; pass `-l` to list sessions or `-n N` to backfill history. The orchestrator banner already echoes the exact invocation per iteration.
 

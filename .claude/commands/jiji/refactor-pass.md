@@ -1,5 +1,5 @@
 ---
-description: Cross-phase cognitive-friction analysis for the jiji compositor and/or CLI loop, followed by cooperative triage with the user, wiring of the scheduled batch (owning DD + loops.conf row + status.md), and a launch handoff. Never writes source code; nothing is scheduled without an explicit user decision.
+description: Cross-phase cognitive-friction analysis for the jiji compositor and/or CLI loop, followed by cooperative triage with the user, wiring of the scheduled batch (owning DD + loop registry row + status.md), and a launch handoff. Never writes source code; nothing is scheduled without an explicit user decision.
 argument-hint: [compositor|cli|both, defaults to compositor]
 ---
 
@@ -21,8 +21,8 @@ No code is written and nothing is scheduled in this step.
 
 **Step 3 — Record + wire (agent, operator-directed).** Relay the user's decisions verbatim to the **same** `jiji-refactor-pass` agent via `SendMessage` resume (available when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`; it is set in `.claude/settings.json` env) — resuming preserves the agent's full analysis context for the wiring. The agent will:
 1. Flip the Status checkboxes to match, set `human-reviewed: true`, add a dated triage note, and commit the pass doc (specs repo).
-2. For the scheduled set only: author the batch owning DD at `specs/<owner>/<scope>-refactor-YYYY-MM.md` (house-style precedent: `compositor-refactor-<YYYY-MM>.md`), add the status.md section, add the `refactor`/`refactor-cli` row to `loops.conf`, and commit (DD + status.md in specs; loops.conf in the workspace repo).
-3. Verify the new row parses out of `loops.conf`.
+2. For the scheduled set only: author the batch owning DD at `specs/<owner>/<scope>-refactor-YYYY-MM.md` (house-style precedent: the most recent existing batch file there), add the status.md section, add the `refactor`/`refactor-cli` row to the **specs-overlay registry** (`specs/<owner>/loops.conf` — a batch DD lives under `specs/`, so its row never goes in the public workspace `loops.conf`), and commit all three together in the specs repo.
+3. Verify the new row resolves: `scripts/loops-registry.sh <row>` prints it and exits 0.
 
 **Fallback (resume unavailable):** perform the same recording + wiring in this session, following the conventions in `.claude/agents/jiji-refactor-pass.md` steps 8–9. Resume is layered, never load-bearing.
 

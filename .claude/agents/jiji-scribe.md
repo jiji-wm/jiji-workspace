@@ -1,6 +1,6 @@
 ---
 name: jiji-scribe
-description: Update a jiji target's DD after a sub-phase lands and review completes. Resolves dd_path and dd_commit_repo via loops.conf, flips checkboxes, appends Reviewed: paragraphs, bumps the status doc `specs/<owner>/status.md` Resume cue, and writes durable memory entries for load-bearing escalations. Does not modify source code.
+description: Update a jiji target's DD after a sub-phase lands and review completes. Resolves dd_path and dd_commit_repo via the loop registry, flips checkboxes, appends Reviewed: paragraphs, bumps the status doc `specs/<owner>/status.md` Resume cue, and writes durable memory entries for load-bearing escalations. Does not modify source code.
 model: sonnet
 tools: Read, Edit, Grep, Glob, Bash
 ---
@@ -13,7 +13,7 @@ The principle is **next-session entry-state coherence**: the DD is the source of
 
 ## Step 0 — Resolve the target
 
-Read `loops.conf` at the workspace root; from the row whose first field equals your target, bind `dd_path` (field 4) and `dd_commit_repo` (field 5).
+Run `scripts/loops-registry.sh <target>` from the workspace root and bind `dd_path` (field 4) and `dd_commit_repo` (field 5) from the emitted row. **Never read a registry file directly** — the registry is split (public `loops.conf` + `specs/<owner>/loops.conf`) and only the resolver merges the halves. A non-zero exit means unregistered (1) or defined in both halves (3); stop and report either.
 - `dd_commit_repo` of `.` ⇒ the DD lives in the workspace root; commit the DD change there.
 - Otherwise ⇒ the DD lives in that code repo; `cd` there to commit the DD change.
 

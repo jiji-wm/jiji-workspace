@@ -1,14 +1,14 @@
 ---
-description: Run pr-review-toolkit against HEAD of a jiji target's code repo, then route findings to jiji-fixer. First arg selects the target from loops.conf.
+description: Run pr-review-toolkit against HEAD of a jiji target's code repo, then route findings to jiji-fixer. First arg selects the target from the loop registry.
 argument-hint: <target>
 ---
 
 Review the latest commit on a registered loop target and route findings to the fixer.
 
-**Step 0 — Resolve the target.** The first token of `$ARGUMENTS` is the target. Validate it against `loops.conf` (`awk -F'|' '!/^#/ && NF {print $1}' loops.conf`); if absent, stop and report the valid targets. Otherwise read the target's `code_repo` (field 3):
+**Step 0 — Resolve the target.** The first token of `$ARGUMENTS` is the target. Resolve it with `scripts/loops-registry.sh` (which merges the public `loops.conf` with the specs overlay — never parse either file directly); on a non-zero exit, stop and report why (exit 1 unknown target, exit 3 defined in both halves). Otherwise read the target's `code_repo` (field 3):
 
 ```bash
-awk -F'|' -v t="<target>" '!/^#/ && $1==t {print $3}' loops.conf
+scripts/loops-registry.sh <target> | awk -F'|' '{print $3}'
 ```
 
 **Step 1:** Run `/pr-review-toolkit:review-pr` against HEAD of `<code_repo>`. The toolkit's orchestrator picks relevant reviewers automatically based on the diff (code-reviewer always; silent-failure-hunter when error-handling changes; comment-analyzer when comments/docstrings change; pr-test-analyzer when tests change; type-design-analyzer when new types are introduced).

@@ -1,5 +1,5 @@
 ---
-description: In-session autonomous chain driver for the jiji loop. Spawns scripts/loop-subphase.sh <target> 1 one iteration at a time, summarizing each sub-phase inline and returning to the session on any halt. First arg selects the target from loops.conf.
+description: In-session autonomous chain driver for the jiji loop. Spawns scripts/loop-subphase.sh <target> 1 one iteration at a time, summarizing each sub-phase inline and returning to the session on any halt. First arg selects the target from the loop registry.
 argument-hint: <target> [max_iter], or --wakeup --log=<marker-path> (re-entry only)
 ---
 
@@ -26,19 +26,13 @@ The bg-completion notification case routes to the same Step 5 logic but is trigg
 
 Parse, in **jiji arg order**: the **first token is `target`** (required); a following **purely-numeric token is `max_iter`** (default 4). The autonomous loop always lands the next unchecked `[ ]` box, so the chain walks consecutive boxes — there is no per-box argument (use interactive `/jiji:land-subphase <target> <box>` to drive one specific box).
 
-Validate `target` against `loops.conf` at the workspace root:
+Resolve `target` from the workspace root. The resolver merges the public `loops.conf` with the specs overlay (`specs/<owner>/loops.conf`) — never parse either file directly:
 
 ```bash
-awk -F'|' '!/^#/ && NF {print $1}' loops.conf
+scripts/loops-registry.sh <target> | awk -F'|' '{print "code="$3" dd="$4" ddrepo="$5}'
 ```
 
-If `target` is missing or not registered, **stop** and list the valid targets. Do not spawn anything, do not call `ScheduleWakeup`.
-
-Bind the target's `code_repo` and `dd_path` for the summary step:
-
-```bash
-awk -F'|' -v t="<target>" '!/^#/ && $1==t {print "code="$3" dd="$4" ddrepo="$5}' loops.conf
-```
+If `target` is missing, or the resolver exits non-zero (1 = unknown, it lists the valid targets; 3 = defined in both registry halves), **stop** and say which. Do not spawn anything, do not call `ScheduleWakeup`.
 
 If `max_iter` was omitted and you can cheaply tell how many `[ ]` boxes remain in the target's `dd_path`, suggest `count + 1` (one extra for halt+resume margin).
 
@@ -68,9 +62,9 @@ Generate `chain_ts` from `date +%Y%m%d-%H%M%S`. Create `~/.cache/jiji-loop/<targ
 ```
 chain_ts=<chain_ts>
 target=<target>
-code_repo=<code_repo from loops.conf>
-dd_path=<dd_path from loops.conf>
-dd_commit_repo=<dd_commit_repo from loops.conf>
+code_repo=<code_repo from the registry>
+dd_path=<dd_path from the registry>
+dd_commit_repo=<dd_commit_repo from the registry>
 goal_max_iter=<max_iter>
 last_summarized_iter=0
 last_signal=

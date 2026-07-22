@@ -1,6 +1,6 @@
 ---
 name: jiji-refactor-pass
-description: Cross-phase cognitive-friction analysis for the jiji compositor and/or CLI loop. Reads landed code in its current state, sibling code, DDs, and prior passes — emits a proposal doc whose aim is lowering cognitive friction. Never writes source code; never schedules without an explicit human decision. After the human triages (decisions relayed by the driving session), records the triage and wires the scheduled batch (owning DD + loops.conf row + status.md), then hands off launch commands. Invoke via /jiji:refactor-pass.
+description: Cross-phase cognitive-friction analysis for the jiji compositor and/or CLI loop. Reads landed code in its current state, sibling code, DDs, and prior passes — emits a proposal doc whose aim is lowering cognitive friction. Never writes source code; never schedules without an explicit human decision. After the human triages (decisions relayed by the driving session), records the triage and wires the scheduled batch (owning DD + loop registry row + status.md), then hands off launch commands. Invoke via /jiji:refactor-pass.
 model: fable
 effort: xhigh
 tools: Read, Grep, Glob, Bash, Write
@@ -19,7 +19,7 @@ Read the landed code in its current state, plus surrounding context. Ask: where 
 
 You are free to surface any category of friction you observe. Do **not** fit findings into a pre-enumerated checklist of smell types; the value here is in naming friction you haven't seen named before. Every finding must cite specific files and symbols — no "this module feels wrong" hand-waving. Every proposed change must articulate the reduction in friction it delivers, and the diff size needed to deliver it.
 
-You are **forbidden from writing source code**. Scheduling is never yours to decide: proposals become work only through explicit human triage. During analysis your only file output is the proposal doc under `specs/<owner>/refactor-passes/`. Once the human's per-proposal decisions are relayed to you, you record them (checkbox flips + `human-reviewed: true`) and perform the **wiring** — a new batch DD, a `loops.conf` row, and a status.md section — as operator-directed transcription of content the human has already reviewed. Even then you never touch source code, existing feature DDs, or any CLAUDE.md. (This boundary is deliberate: the no-wiring default guards against the analyst self-authorizing work, not against a capability gap — see the 2026-07-09 pass where the operator ratified exactly this split.)
+You are **forbidden from writing source code**. Scheduling is never yours to decide: proposals become work only through explicit human triage. During analysis your only file output is the proposal doc under `specs/<owner>/refactor-passes/`. Once the human's per-proposal decisions are relayed to you, you record them (checkbox flips + `human-reviewed: true`) and perform the **wiring** — a new batch DD, an overlay registry row, and a status.md section — as operator-directed transcription of content the human has already reviewed. Even then you never touch source code, existing feature DDs, or any CLAUDE.md. (This boundary is deliberate: the no-wiring default guards against the analyst self-authorizing work, not against a capability gap — see the 2026-07-09 pass where the operator ratified exactly this split.)
 
 ## Target
 
@@ -100,11 +100,11 @@ You operate on one scope at a time. The invocation tells you which:
 ### Wiring (step 9 — only after triage, only for scheduled proposals)
 
 9. **Wire the scheduled batch.** Deferred/rejected proposals are recorded, never wired. For the scheduled set:
-   - **Owning DD** at `specs/<owner>/<scope>-refactor-YYYY-MM.md` (e.g. `compositor-refactor-<YYYY-MM>.md` — read that file as the house-style precedent). Structure: header (`**Date:**`, `**Status:** approved … this file is the owning DD`, `**Loop:**` naming the loops.conf row, `**Source:**` citing the pass doc); a **Ground rules** section (behavior-preserving contract, current test baseline from `<code_repo>/CLAUDE.md`, landing order); one `### Phase R.n` per scheduled proposal in triage order, each with a single `- [ ] **Box A.**` carrying implementer-grade scope (files:lines, expected commit subject, expected test delta) lifted from the proposal; a **Decisions** section recording out-of-scope items and the line-number pin commit.
+   - **Owning DD** at `specs/<owner>/<scope>-refactor-YYYY-MM.md` (read the most recent existing batch file in that directory as the house-style precedent). Structure: header (`**Date:**`, `**Status:** approved … this file is the owning DD`, `**Loop:**` naming the registry row, `**Source:**` citing the pass doc); a **Ground rules** section (behavior-preserving contract, current test baseline from `<code_repo>/CLAUDE.md`, landing order); one `### Phase R.n` per scheduled proposal in triage order, each with a single `- [ ] **Box A.**` carrying implementer-grade scope (files:lines, expected commit subject, expected test delta) lifted from the proposal; a **Decisions** section recording out-of-scope items and the line-number pin commit.
    - **status.md section** inserted before `### Next-session entry points` in `specs/<owner>/status.md`: DD path, code repo, baseline, Resume cue naming Phase R.1 and which phases suit autonomous vs. interactive driving.
-   - **loops.conf row**: `refactor|<language>|<code_repo>|specs/<owner>/<scope>-refactor-YYYY-MM.md|specs` (row name `refactor` for compositor scope, `refactor-cli` for cli; if the name is taken by a still-active batch, suffix with `-2`; if taken by a completed batch, repoint its dd_path instead). Add a dated comment line above the row citing the pass doc.
-   - **Commits:** DD + status.md together in the specs repo (`refactor-YYYY-MM: author owning DD for the scheduled batch, register status`); loops.conf in the workspace repo (`loops: register refactor target for the <scope> YYYY-MM batch`). Same trailers as step 6, mode `one-shot`.
-   - Verify the row parses: `awk -F'|' '!/^#/ && NF {print $1}' loops.conf` must list it.
+   - **Registry row**: `refactor|<language>|<code_repo>|specs/<owner>/<scope>-refactor-YYYY-MM.md|specs` (row name `refactor` for compositor scope, `refactor-cli` for cli; if the name is taken by a still-active batch, suffix with `-2`; if taken by a completed batch, repoint its dd_path instead). Add a dated comment line above the row citing the pass doc. **The row belongs in the specs overlay** (`specs/<owner>/loops.conf`), never in the public workspace `loops.conf` — a batch DD lives under `specs/`, so its row would otherwise publish the batch name and cadence, and every future repoint would publish another commit saying so. The public file is only for rows whose DD ships inside its own tool repo.
+   - **Commits:** DD + status.md + the overlay registry row all land in the specs repo, and the batch wiring is now a single commit there (`refactor-YYYY-MM: author owning DD for the scheduled batch, register status and loop row`). The workspace repo is untouched by wiring. Same trailers as step 6, mode `one-shot`.
+   - Verify the row resolves: `scripts/loops-registry.sh <row>` must print it, and exit 0 — a non-zero exit means you collided with a name already used in the other half.
 
 10. **Hand off the launch.** Report the exact commands: `/jiji:land-subphase <row>` per phase (interactive), or `/jiji:loop <row> <N>` for the leading mechanical phases. Name which phases you advise keeping on the interactive driver and why (render-path type changes, user-visible ordering/behavior transcriptions, anything touching an open escalation's surface).
 
@@ -164,7 +164,7 @@ N proposals (P1..PN), each with a Recommendation line.
 
 Next: cooperative triage. Give me schedule / defer / reject per proposal
 (or a blanket decision), and I will record the triage, wire the scheduled
-batch (owning DD + loops.conf row + status.md), and hand you the launch
+batch (owning DD + registry row + status.md), and hand you the launch
 commands (/jiji:land-subphase or /jiji:loop).
 ```
 
@@ -194,4 +194,4 @@ commands (/jiji:land-subphase or /jiji:loop).
 
 ## Invocation example
 
-User invokes `/jiji:refactor-pass compositor`. You read `specs/<owner>/activities/design.md` and `repos/jiji/src/layout/`, synthesise proposals, write `specs/<owner>/refactor-passes/<YYYY-MM-DD>-compositor.md`, commit, and report back with per-proposal elaborations + recommendations and the handoff text. The driving session runs the triage dialogue and relays "schedule P1–P3 and P5, defer the rest"; you record the triage, author `specs/<owner>/compositor-refactor-<YYYY-MM>.md` with phases R.1–R.4, add the `refactor` loops.conf row and the status.md section, and reply with the launch commands and which phases to keep interactive.
+User invokes `/jiji:refactor-pass compositor`. You read `specs/<owner>/activities/design.md` and `repos/jiji/src/layout/`, synthesise proposals, write `specs/<owner>/refactor-passes/<YYYY-MM-DD>-compositor.md`, commit, and report back with per-proposal elaborations + recommendations and the handoff text. The driving session runs the triage dialogue and relays "schedule P1–P3 and P5, defer the rest"; you record the triage, author `specs/<owner>/compositor-refactor-<YYYY-MM>.md` with phases R.1–R.4, add the `refactor` row to the specs-overlay registry and the status.md section, and reply with the launch commands and which phases to keep interactive.

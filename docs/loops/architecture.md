@@ -4,16 +4,16 @@ The day-to-day workflow guide is `docs/loops/jiji-loop.md`. This file documents 
 
 ## Structure
 
-All loops share **one** role-based agent set and **one** flat command set in this workspace's `.claude/`. The implementer is chosen by **language** (resolved from `loops.conf`); architect / fixer / scribe are language-agnostic.
+All loops share **one** role-based agent set and **one** flat command set in this workspace's `.claude/`. The implementer is chosen by **language** (resolved from the loop registry); architect / fixer / scribe are language-agnostic.
 
 ```
 .claude/
   agents/
-    jiji-architect.md        (language-agnostic; resolves target via loops.conf, reads target repo CLAUDE.md)
+    jiji-architect.md        (language-agnostic; resolves target via the loop registry, reads target repo CLAUDE.md)
     jiji-rust-implementer.md (Rust implementer; one per language — add jiji-<lang>-implementer for a new language)
     jiji-js-implementer.md   (JavaScript/WebExtension implementer; serves the ff-restore-ext extension loop)
     jiji-fixer.md            (language-agnostic)
-    jiji-scribe.md           (language-agnostic; resolves dd_path + dd_commit_repo via loops.conf)
+    jiji-scribe.md           (language-agnostic; resolves dd_path + dd_commit_repo via the loop registry)
     jiji-architect-pass.md   (cross-phase gap analysis, invoked by /jiji:architect-pass)
     jiji-refactor-pass.md    (cross-phase cognitive-friction analysis, invoked by /jiji:refactor-pass)
   commands/
@@ -29,7 +29,9 @@ All loops share **one** role-based agent set and **one** flat command set in thi
       initiative.md      → /jiji:initiative [status|note|done]
 ```
 
-The flat commands take **`<target>` as their first argument** and resolve it against **`loops.conf`** (the loop-target registry: `name|language|code_repo|dd_path|dd_commit_repo`). **`loops.conf` is the authoritative registry** — this doc deliberately doesn't mirror the full target list. Illustrative rows: `compositor` (rust, `repos/jiji`), `cli` (rust, `repos/jiji-activities`), `ff-restore-ext` (js, the Firefox extension half). Adding a loop is one `loops.conf` row (plus, only for a genuinely new language, one `jiji-<language>-implementer` — `js` added 2026-06-03 for the extension fork). Some targets share one DD split by component + language (see the comments in `loops.conf`); always name the box explicitly when landing against a shared DD.
+The flat commands take **`<target>` as their first argument** and resolve it against the **loop-target registry** (`name|language|code_repo|dd_path|dd_commit_repo`). **The registry is authoritative** — this doc deliberately doesn't mirror the full target list. Illustrative rows: `compositor` (rust, `repos/jiji`), `cli` (rust, `repos/jiji-activities`), `ff-restore-ext` (js, the Firefox extension half). Adding a loop is one registry row (plus, only for a genuinely new language, one `jiji-<language>-implementer` — `js` added 2026-06-03 for the extension fork). Some targets share one DD split by component + language (see the registry comments); always name the box explicitly when landing against a shared DD.
+
+**The registry is split in two halves, by DD visibility.** `loops.conf` at the workspace root carries the format documentation and the rows whose DD ships inside its own tool repo (`cli`, `jiji-do`, `ff-restore*`, `kbd-indicator`). Rows whose `dd_path` points into `specs/` live in the access-restricted specs overlay at `specs/<owner>/loops.conf` — the same rule that already keeps `status.md` there, applied to the registry so that unreleased initiative names, batch cadence, and the commit log that repoints them stay out of the public repo. **Never parse either file directly.** `scripts/loops-registry.sh` merges them — optionally filtered to one target — and enforces a strict union: a name defined in both halves is a hard error (exit 3), never a silent shadow, because a shadowing row would route an implementer at the wrong repo. Without overlay access the specs half is simply absent and the public rows keep working. New row goes wherever its DD lives.
 
 **Scope discipline.** One agent set serves every target. **Per-codebase discipline lives in each target repo's `CLAUDE.md`**, not in the agents — the compositor's invariant-check + test-bucket arithmetic in `repos/jiji/CLAUDE.md`, the CLI's `assert_cmd`/exit-code rigor in `repos/jiji-activities/CLAUDE.md`. The architect, fixer, and scribe read the target repo's `CLAUDE.md` for that context; only the **implementer specializes, and only by language** (`jiji-rust-implementer` today). This keeps the agents stable as targets are added: a new Rust tool costs zero new agents, a non-Rust tool costs one implementer, a non-CLI Rust tool costs only its own repo `CLAUDE.md` discipline.
 
@@ -43,7 +45,7 @@ The loop supports an `--autonomous` flag that runs the full sub-phase end-to-end
 | Autonomous (detached) | `scripts/loop-subphase.sh <target> [N]` | N fresh `claude -p` sessions, back-to-back | Pass automatically; halt on conditions below |
 | Autonomous (in-session) | `/jiji:loop <target> [N]` | N detached iterations spawned one at a time from this session; each summary prints inline, halts return here | Pass automatically; halt on conditions below |
 
-`<target>` is a name registered in `loops.conf`; both drivers validate it against the registry and refuse anything else.
+`<target>` is a name in the loop registry; both drivers resolve it through `scripts/loops-registry.sh` and refuse anything else.
 
 `/jiji:loop` is the in-session L3 driver: it spawns `scripts/loop-subphase.sh <target> 1` one iteration at a time (re-entering on the background-completion notification, with a 30-min `ScheduleWakeup` fallback), summarizes each landed sub-phase inline via a haiku agent, and returns to the live session on any halt for an interactive decision. The detached script stays the single source of truth for *batch* logic; `/jiji:loop` only owns the iteration chain and a per-iter conversation surface. Chain state persists in a marker at `~/.cache/jiji-loop/<target>-chain<ts>.chain`, so a re-entered session can resume. (A failed `Workflow`-tool variant, `/jiji:flow`, was retired — see `docs/loops/workflow-tool-findings.md` for why the conversational driver won.)
 

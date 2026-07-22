@@ -2,16 +2,18 @@
 
 A practical reference for using the unified `jiji-*` subagents and flat `/jiji:*` slash commands to land sub-phases from any loop target's DD.
 
-**One loop, many targets.** A single role-based agent set (`jiji-architect`, `jiji-<language>-implementer`, `jiji-fixer`, `jiji-scribe`) drives every target. The first argument to each command is a **`<target>`** — a name registered in **`loops.conf`** (`name|language|code_repo|dd_path|dd_commit_repo`). **The authoritative target registry is `loops.conf`** — check it for the current list rather than any snapshot here. Two illustrative rows:
+**One loop, many targets.** A single role-based agent set (`jiji-architect`, `jiji-<language>-implementer`, `jiji-fixer`, `jiji-scribe`) drives every target. The first argument to each command is a **`<target>`** — a name in the loop registry (`name|language|code_repo|dd_path|dd_commit_repo`). **The registry is authoritative** — run `scripts/loops-registry.sh` for the current list rather than trusting any snapshot here. Two illustrative rows:
 
 | target | language | code repo | DD | DD commit repo |
 |---|---|---|---|---|
 | `compositor` | rust | `repos/jiji` | `specs/<owner>/activities/design.md` | specs overlay (`specs`) |
 | `cli` | rust | `repos/jiji-activities` | `repos/jiji-activities/docs/design.md` | `repos/jiji-activities` |
 
-The command resolves the target against `loops.conf`, dispatches `jiji-<language>-implementer` (`rust` → `jiji-rust-implementer`, `js` → `jiji-js-implementer`), and the scribe commits the DD change in the target's `dd_commit_repo`. **Per-codebase discipline lives in each target repo's `CLAUDE.md`** — the compositor's invariant-check + test-bucket arithmetic in `repos/jiji/CLAUDE.md`, the CLI's `assert_cmd`/exit-code/fuzzel rigor in `repos/jiji-activities/CLAUDE.md`, the extension's marker/protocol contracts in `repos/jiji-firefox-workspaces/extension/CLAUDE.md`. The agents read it; they don't bake it.
+The registry is split by DD visibility: `loops.conf` (public workspace repo) holds the rows whose DD ships inside its own tool repo, `specs/<owner>/loops.conf` (specs overlay) holds the rows whose DD lives under `specs/`. `scripts/loops-registry.sh` merges the halves and rejects a name defined in both; never parse either file directly. Without overlay access the specs half is absent and the public rows still work.
 
-**Shared DDs (multi-loop).** Usually two targets never share an active DD. Occasionally they do — e.g. `ff-restore` + `ff-restore-ext`: one design doc split by component + language (Rust host in `src/`, JS extension in `extension/`); `loops.conf` comments mark the shared rows. The checklist tags each box with its owning loop, and the architect plans only its loop's boxes. **When landing against a shared DD, always name the box** (e.g. `/jiji:land-subphase ff-restore-ext P4`) so the architect plans the right one.
+The command resolves the target through that script, dispatches `jiji-<language>-implementer` (`rust` → `jiji-rust-implementer`, `js` → `jiji-js-implementer`), and the scribe commits the DD change in the target's `dd_commit_repo`. **Per-codebase discipline lives in each target repo's `CLAUDE.md`** — the compositor's invariant-check + test-bucket arithmetic in `repos/jiji/CLAUDE.md`, the CLI's `assert_cmd`/exit-code/fuzzel rigor in `repos/jiji-activities/CLAUDE.md`, the extension's marker/protocol contracts in `repos/jiji-firefox-workspaces/extension/CLAUDE.md`. The agents read it; they don't bake it.
+
+**Shared DDs (multi-loop).** Usually two targets never share an active DD. Occasionally they do — e.g. `ff-restore` + `ff-restore-ext`: one design doc split by component + language (Rust host in `src/`, JS extension in `extension/`); registry comments mark the shared rows. The checklist tags each box with its owning loop, and the architect plans only its loop's boxes. **When landing against a shared DD, always name the box** (e.g. `/jiji:land-subphase ff-restore-ext P4`) so the architect plans the right one.
 
 ## TL;DR
 
@@ -31,7 +33,7 @@ Stop at the two human gates. Say `go` to pass the first, `scribe` to pass the se
 | `/jiji:scribe-review <target> [hash]` | Review is done; append the `Reviewed:` block to the DD | jiji-scribe |
 | `/jiji:land-subphase <target> [name]` | **Default.** Full architect → implementer → review → fixer → scribe cycle | all four, in sequence |
 
-`[name]` defaults to "topmost unchecked `[ ]` box in the current phase" when blank. `[hash]` defaults to HEAD of the target's `code_repo`. The orchestrator (`scripts/loop-subphase.sh <target> [N]`) drives `/jiji:land-subphase <target> --autonomous` in fresh `claude -p` sessions and validates `<target>` against `loops.conf`.
+`[name]` defaults to "topmost unchecked `[ ]` box in the current phase" when blank. `[hash]` defaults to HEAD of the target's `code_repo`. The orchestrator (`scripts/loop-subphase.sh <target> [N]`) drives `/jiji:land-subphase <target> --autonomous` in fresh `claude -p` sessions and resolves `<target>` through `scripts/loops-registry.sh`.
 
 ## Human-only ratification boxes (no code)
 
@@ -73,7 +75,7 @@ Output carries the routing metadata (`## Language`, `## Target repo`) plus scope
 - Wants more work → ask for specific changes, or escalate back to the architect.
 
 ### 8. Scribe updates the DD
-`jiji-scribe` resolves `dd_path` + `dd_commit_repo` from `loops.conf`, reads the most recent two-to-three `Reviewed:` blocks to match voice, flips checkboxes, appends the `Reviewed:` paragraph citing all sub-phase commits (primary + any follow-ups), commits in `dd_commit_repo` with trailer `AI-Assisted: scribe (<model>)`, and bumps the workspace `CLAUDE.md` Resume cue.
+`jiji-scribe` resolves `dd_path` + `dd_commit_repo` from the registry, reads the most recent two-to-three `Reviewed:` blocks to match voice, flips checkboxes, appends the `Reviewed:` paragraph citing all sub-phase commits (primary + any follow-ups), commits in `dd_commit_repo` with trailer `AI-Assisted: scribe (<model>)`, and bumps the workspace `CLAUDE.md` Resume cue.
 
 ### 9. Report
 All `code_repo` commit hashes from this sub-phase, the DD-scribing commit hash, test pass count delta, next suggested sub-phase.
@@ -144,10 +146,10 @@ Don't. `/clear` first, then run `/jiji:next-subphase <target>` fresh. Long-conte
 ```
 .claude/
   agents/
-    jiji-architect.md          # planner; opus/xhigh; resolves target via loops.conf
+    jiji-architect.md          # planner; opus/xhigh; resolves target via the loop registry
     jiji-rust-implementer.md   # Rust coder; sonnet; reads target repo CLAUDE.md
     jiji-fixer.md              # mechanical fixes; sonnet
-    jiji-scribe.md             # DD ledger; sonnet; resolves dd_commit_repo via loops.conf
+    jiji-scribe.md             # DD ledger; sonnet; resolves dd_commit_repo via the loop registry
     jiji-architect-pass.md     # cross-phase gap analysis  → /jiji:architect-pass
     jiji-refactor-pass.md      # cross-phase friction scan  → /jiji:refactor-pass
   commands/
@@ -162,7 +164,7 @@ Don't. `/clear` first, then run `/jiji:next-subphase <target>` fresh. Long-conte
   scheduled_tasks.lock         # runtime (gitignored)
 ```
 
-Adding a loop target is one `loops.conf` row (plus, only for a genuinely new language, one `jiji-<language>-implementer`).
+Adding a loop target is one registry row — in `loops.conf` when the DD ships in its own tool repo, in the specs overlay when it lives under `specs/` (plus, only for a genuinely new language, one `jiji-<language>-implementer`).
 
 ## Gotchas
 

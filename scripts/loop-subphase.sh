@@ -9,7 +9,8 @@
 #
 # Usage:
 #   scripts/loop-subphase.sh <target> [MAX_ITER]   # default MAX_ITER=4
-#   <target> must be a name registered in loops.conf (e.g. compositor, cli).
+#   <target> must be a name in the loop registry (e.g. compositor, cli) — see
+#   scripts/loops-registry.sh, which merges loops.conf with the specs overlay.
 #
 # Resume after a halt: `claude --resume <session-id>` (printed on halt).
 # Cancel: Ctrl-C between iterations, or kill the running `claude` process.
@@ -19,16 +20,20 @@ set -euo pipefail
 LOOP="${1:-}"
 MAX_ITER="${2:-4}"
 
-# Run from the workspace root so /jiji:* commands and loops.conf resolve.
+# Run from the workspace root so /jiji:* commands and registry paths resolve.
 WORKSPACE="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$WORKSPACE"
 
-# Validate the target against the loops.conf registry; any registered target is
-# drivable autonomously with no script change.
-if [ -z "$LOOP" ] || ! awk -F'|' '!/^#/ && NF {print $1}' loops.conf | grep -qx "$LOOP"; then
+# Validate the target against the merged registry (public loops.conf + specs
+# overlay); any registered target is drivable autonomously with no script change.
+# Resolving once up front means a fatal registry error (duplicate target across
+# halves) aborts here under `set -e`, with the resolver's own message, rather
+# than degrading into a misleading "unknown target".
+REGISTRY="$("$WORKSPACE/scripts/loops-registry.sh")"
+if [ -z "$LOOP" ] || ! printf '%s\n' "$REGISTRY" | awk -F'|' 'NF {print $1}' | grep -qx "$LOOP"; then
   echo "usage: $(basename "$0") <target> [MAX_ITER]" >&2
   echo "valid targets:" >&2
-  awk -F'|' '!/^#/ && NF {print "  "$1}' loops.conf >&2
+  printf '%s\n' "$REGISTRY" | awk -F'|' 'NF {print "  "$1}' >&2
   exit 2
 fi
 CMD="/jiji:land-subphase $LOOP --autonomous"

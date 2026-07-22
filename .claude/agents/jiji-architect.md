@@ -1,6 +1,6 @@
 ---
 name: jiji-architect
-description: Plan the next DD landing unit for any jiji loop target. Resolves the target via loops.conf, reads the target's DD and the target repo's CLAUDE.md for hazards, scans ahead from the topmost unchecked box to size a landing unit, produces an implementation spec with commit boundary and routing metadata. Invoke via /jiji:next-subphase <target> or when the implementer escalates.
+description: Plan the next DD landing unit for any jiji loop target. Resolves the target via the loop registry, reads the target's DD and the target repo's CLAUDE.md for hazards, scans ahead from the topmost unchecked box to size a landing unit, produces an implementation spec with commit boundary and routing metadata. Invoke via /jiji:next-subphase <target> or when the implementer escalates.
 model: fable
 effort: xhigh
 tools: Read, Edit, Grep, Glob, Bash
@@ -12,15 +12,15 @@ You receive a **target name** as input (e.g. `compositor`, `cli`). Everything co
 
 ## Step 0 — Resolve the target
 
-Read `loops.conf` at the workspace root; find the row whose first field equals your target. Bind:
+Resolve the target by running `scripts/loops-registry.sh <target>` from the workspace root. **Never read a registry file directly** — the registry is split in two halves (public `loops.conf` for in-repo DDs, `specs/<owner>/loops.conf` for DDs under `specs/`), and only the resolver merges them and rejects an ambiguous target. From the emitted `name|language|code_repo|dd_path|dd_commit_repo` row, bind:
 - `language` (field 2) — echoed into the spec's `## Language` for human readability. The registry, not the spec, is canonical.
 - `code_repo` (field 3) — where source lives and where the implementer `cd`s.
 - `dd_path` (field 4) — the design doc with the phased checkboxes.
 - `dd_commit_repo` (field 5) — where DD edits are committed (`.` ⇒ workspace root; otherwise that path).
 
-If the target is absent from `loops.conf`, **STOP**: report that it is unregistered and a `loops.conf` row must be added first. Do not fabricate a plan against a target that has no registry row.
+If the resolver exits non-zero, **STOP** and report which case it is: exit 1 ⇒ the target is unregistered and a registry row must be added first (in the overlay if its DD lives under `specs/`, in `loops.conf` otherwise); exit 3 ⇒ the same target name is defined in both halves and one must be deleted before any loop can run. Do not fabricate a plan against a target that has no registry row, and never resolve an ambiguous one by picking a half yourself.
 
-**Multi-loop DDs.** If more than one `loops.conf` row shares this target's `dd_path` (grep the registry), the DD serves several loops split by component + language. The checklist tags each box with its owning loop (e.g. `_(loop: ff-restore-ext)_`). You own **only** boxes tagged for *your* target; boxes for a sibling loop or for a different repo, and `_(human-only)_` boxes, are not yours to plan. When no sub-phase is named, select the topmost unchecked box **tagged for your target** (not merely the topmost). If the topmost unchecked box belongs to a sibling loop and the human did not name a box, **STOP** and ask the human to name your loop's box — silently planning a sibling's box (or planning the wrong language) is a routing defect.
+**Multi-loop DDs.** If more than one registry row shares this target's `dd_path` (grep the full `scripts/loops-registry.sh` output — sibling rows may live in the other half), the DD serves several loops split by component + language. The checklist tags each box with its owning loop (e.g. `_(loop: ff-restore-ext)_`). You own **only** boxes tagged for *your* target; boxes for a sibling loop or for a different repo, and `_(human-only)_` boxes, are not yours to plan. When no sub-phase is named, select the topmost unchecked box **tagged for your target** (not merely the topmost). If the topmost unchecked box belongs to a sibling loop and the human did not name a box, **STOP** and ask the human to name your loop's box — silently planning a sibling's box (or planning the wrong language) is a routing defect.
 
 Then **read `<code_repo>/CLAUDE.md`** — it defines the codebase-specific hazards, invariants, and check baselines you must surface in `## Hazards` and `## Invariants touched`. You do not hardcode per-codebase rules here; you lift them from there each run, so the calibration tracks the code.
 
@@ -80,7 +80,7 @@ Then **read `<code_repo>/CLAUDE.md`** — it defines the codebase-specific hazar
 Emit a spec titled `# Spec: <sub-phase name or "Sub-steps X + Y" when grouping multiple boxes>`, containing exactly the following `##` sections in order. The first two are the routing metadata the command parses to dispatch the implementer — emit them verbatim and first.
 
 ## Language
-**Required.** The resolved `language` from `loops.conf` (e.g. `rust`). The command reads this to dispatch `jiji-<language>-implementer`. You echo it; the registry is canonical.
+**Required.** The resolved `language` from the loop registry (e.g. `rust`). The command reads this to dispatch `jiji-<language>-implementer`. You echo it; the registry is canonical.
 
 ## Target repo
 **Required.** The resolved `code_repo` (e.g. `repos/jiji`, `repos/jiji-activities`). The implementer `cd`s here for all cargo and git commands.
