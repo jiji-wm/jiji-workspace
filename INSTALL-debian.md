@@ -408,6 +408,33 @@ cd ..
 systemctl --user restart niri     # or log out and back in
 ```
 
+### Reclaiming Rust build-artifact disk space
+
+Every repo in this workspace keeps its own `target/`, and a mature checkout's
+can reach tens of GB. The bulk of it is usually not stale *code* but artifacts
+built by a toolchain you no longer have — every `rustup update` orphans the
+entire previous set, and nothing removes it automatically.
+
+```sh
+cargo install cargo-sweep
+
+# the main lever: drop artifacts built by uninstalled toolchains
+cargo sweep --recursive --installed ~/projects
+
+# secondary: drop artifacts untouched for 30+ days (dormant repos)
+cargo sweep --recursive --time 30 ~/projects
+```
+
+`--installed` is a **no-op once swept** — it finds nothing again until the next
+`rustup update` orphans a new set, so pair it with toolchain updates rather than
+running it on a tight schedule. `--time` is the one worth running periodically,
+though on an actively-built workspace it typically reclaims far less.
+
+Prefer either over a bare `cargo clean`, which also discards the warm
+incremental state that makes the next build fast. Check `df -h` for the
+filesystem your repos actually live on — `$HOME` is frequently a separate
+volume from `/`.
+
 ## Uninstalling
 
 ```sh
