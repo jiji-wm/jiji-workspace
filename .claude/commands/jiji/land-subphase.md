@@ -81,13 +81,25 @@ Run `/pr-review-toolkit:review-pr` against the new commit(s) in `<code_repo>`.
 
 **The contract, stated in every reviewer's own prompt:**
 
-- **One private worktree per empirically-verifying reviewer** — `git worktree add ~/.cache/jiji-review-worktrees/wt-<role>-<sha> <sha> --detach`. Per reviewer, **not** per review round: five agents in one shared tree reproduces the race one level down. Detach at the sha (a branch can't be checked out in two worktrees, and the commit under review shouldn't move anyway).
+- **One private worktree per empirically-verifying reviewer**, at a stable per-role path — `git worktree add ~/.cache/jiji-review-worktrees/wt-<role> <sha> --detach`. Per reviewer, **not** per review round: several agents in one shared tree reproduces the race one level down. Detach at the sha (a branch can't be checked out in two worktrees, and the commit under review shouldn't move anyway).
 - **Check where you're putting it before you build there.** The session scratchpad lives under `/tmp`, which is commonly a **tmpfs (RAM-backed)** — it is on the maintainer's setup. A `cargo test` tree for this workspace is multi-GB, so several concurrent builds there can exhaust it and pressure the whole system. Confirm with `df -h /tmp <candidate-path>` and prefer real disk (e.g. `~/.cache/…`). Check headroom against `target/` too — a mature checkout's `target/` can dwarf the free space, and every fresh worktree starts from a cold build.
-- **Keep the number of building trees small — one or two.** Cold `cargo` builds are the dominant cost of this whole contract, so give a tree only to reviewers whose findings actually depend on running something. If disk is tight, a shared `CARGO_TARGET_DIR` across the trees is a valid fallback: source isolation (the point of the contract) is preserved, at the price of a build lock serializing them and fingerprint thrash between differing sabotage states.
+- **Keep the number of building trees small — one or two.** Builds are the dominant cost of this whole contract, so give a tree only to reviewers whose findings actually depend on running something.
+- **If you do need two at once, share one `CARGO_TARGET_DIR`** rather than giving each its own. Registry dependencies are then compiled once and reused by both — that's the bulk of a cold build. Workspace crates don't clobber each other either: a path dependency's package ID embeds its path, so the same crate built from two worktrees hashes to distinct artifact names and the two coexist. The real cost is that cargo locks the build directory, so the builds serialize ("Blocking waiting for file lock on build directory") — fine at two, bad at five.
+- **Don't try to seed a tree by copying `target/`.** The dependency artifacts would survive the move, but each workspace crate's dep-info records absolute source paths that no longer resolve, so those rebuild anyway — and you'd pay a full byte-for-byte copy for the half you could have had free via a shared `CARGO_TARGET_DIR`. On a filesystem without reflink support (ext4, as here) there is no cheap copy-on-write shortcut; check with `cp --reflink=always` before assuming otherwise.
 - **Say it is theirs alone**, and require them to restore it clean (`git -C <wt> status --short` empty) before finishing. Tell them explicitly not to touch `<code_repo>`.
 - **`git -C <abs-path>` for every git command.** Agent bash cwd resets between calls, so a bare `git status` can silently report on the parent workspace repo and look reassuringly clean.
-- **Static-only reviewers get no worktree** — tell them to read via `git show <sha>:<path>` / `git diff <base>..<sha>`, which hit the immutable object store and are immune for free. Comment- and type-design-style reviews usually qualify; anything that builds, runs tests, or instruments a fixture does not. Fewer trees is cheaper: each one is a cold `cargo` build.
-- **Remove the worktrees** (`git worktree remove <path> --force`) once the round is done — they don't self-clean, and each carries its own `target/`.
+- **Static-only reviewers get no worktree** — tell them to read via `git show <sha>:<path>` / `git diff <base>..<sha>`, which hit the immutable object store and are immune for free. Comment- and type-design-style reviews usually qualify; anything that builds, runs tests, or instruments a fixture does not. Fewer trees is cheaper: each one costs a one-time cold build plus a `target/` living on disk indefinitely.
+- **Keep the worktrees between rounds — do NOT remove them.** A destroyed tree throws away its warm `target/`, and the cold rebuild that follows is the entire cost of this contract. Reuse a persistent tree instead, repointing it at the new commit:
+
+  ```bash
+  WT=~/.cache/jiji-review-worktrees/wt-<role>
+  # first time only:
+  git -C <code_repo> worktree add "$WT" <sha> --detach
+  # every round after:
+  git -C "$WT" reset --hard <sha>
+  ```
+
+  `reset --hard` rewrites tracked files but **leaves gitignored paths alone**, so `target/` survives and each round compiles only the delta since the last reviewed commit. Never `git clean -fdx` to tidy between rounds — it deletes `target/` and puts you back to cold. Once a tree is warm, a sabotage edit rebuilds a single crate in seconds, which is what makes empirical verification affordable at all.
 
 **What a detached worktree keeps and loses** (verified for `repos/jiji` on 2026-07-23 — re-check before assuming it holds for another target, and note some of it is repo-local rather than universal):
 
