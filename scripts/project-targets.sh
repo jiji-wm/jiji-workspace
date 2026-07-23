@@ -6,7 +6,7 @@
 #   cargo      (Rust tools)            — cargo install --offline into ~/.cargo/bin (per-user)
 #   waf        (jiji-hamster, Python)  — ./waf configure build; system-wide via sudo ./waf install
 
-TARGETS="upstream jiji jiji-activities jiji-do jiji-firefox-workspaces jiji-hamster jiji-hamster-bridge jiji-kbd-indicator"
+TARGETS="upstream jiji jiji-activities jiji-do jiji-firefox-workspaces jiji-hamster jiji-hamster-bridge jiji-kbd-indicator jiji-session-manager"
 
 target_dir() {
     case "$1" in
@@ -18,6 +18,7 @@ target_dir() {
         jiji-hamster)            echo "$WORKSPACE/repos/jiji-hamster" ;;
         jiji-hamster-bridge)     echo "$WORKSPACE/repos/jiji-hamster-bridge" ;;
         jiji-kbd-indicator)      echo "$WORKSPACE/repos/jiji-kbd-indicator" ;;
+        jiji-session-manager)    echo "$WORKSPACE/repos/jiji-session-manager" ;;
         *) return 1 ;;
     esac
 }
@@ -44,6 +45,7 @@ target_bin() {
         jiji-hamster)            echo "hamster" ;;
         jiji-hamster-bridge)     echo "jiji-hamster-bridge" ;;
         jiji-kbd-indicator)      echo "jiji-kbd-indicator" ;;
+        jiji-session-manager)    echo "jiji-session-manager" ;;
         *) return 1 ;;
     esac
 }

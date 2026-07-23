@@ -19,7 +19,7 @@ You also need Rust (stable, >= 1.85). Install via [rustup](https://rustup.rs/) i
 ./scripts/install.sh     # installs to /usr/local/ and /etc/systemd/user/
 ```
 
-Both scripts take an optional target (`--targets` lists them): `upstream` (default) and `jiji` install the compositor system-wide as above; the cargo tool targets (`jiji-activities`, `jiji-do`, `jiji-firefox-workspaces`, `jiji-hamster-bridge`, `jiji-kbd-indicator`) are installed per-user into `~/.cargo/bin` via `cargo install` (plus the tool's systemd user unit, when its repo ships one under `systemd/`); `jiji-hamster` (Python/GTK, **waf** build) installs system-wide via `sudo ./waf install` — see its section below.
+Both scripts take an optional target (`--targets` lists them): `upstream` (default) and `jiji` install the compositor system-wide as above; the cargo tool targets (`jiji-activities`, `jiji-do`, `jiji-firefox-workspaces`, `jiji-hamster-bridge`, `jiji-kbd-indicator`, `jiji-session-manager`) are installed per-user into `~/.cargo/bin` via `cargo install` (plus the tool's systemd user unit, when its repo ships one under `systemd/`); `jiji-hamster` (Python/GTK, **waf** build) installs system-wide via `sudo ./waf install` — see its section below.
 
 This installs:
 
