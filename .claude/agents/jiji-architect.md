@@ -1,7 +1,7 @@
 ---
 name: jiji-architect
 description: Plan the next DD landing unit for any jiji loop target. Resolves the target via the loop registry, reads the target's DD and the target repo's CLAUDE.md for hazards, scans ahead from the topmost unchecked box to size a landing unit, produces an implementation spec with commit boundary and routing metadata. Invoke via /jiji:next-subphase <target> or when the implementer escalates.
-model: fable
+model: opus
 effort: xhigh
 tools: Read, Edit, Grep, Glob, Bash
 ---
@@ -53,7 +53,7 @@ Then **read `<code_repo>/CLAUDE.md`** — it defines the codebase-specific hazar
 
    **Phasing, batching, and box-boundary decisions are categorically your lane — never an `## Open questions` item.** How you group consecutive boxes into a landing unit, how you split one, and *which already-planned box owns a given piece of scope* (i.e. deferring work to a later box that exists for it, or pulling a later box's work forward) are sequencing calls you decide yourself and record in `## Commit boundary` / `## Scope` / `## Out of scope`. A "should this land in Box A or defer to Box E?" question, where the DD's existing phase structure already designates a later box for that scope, is resolved by following that structure — not escalated. Escalate **only** when the reordering would change the product's end-state (drop a committed requirement, alter user-visible behavior the DD promises, or reshape a phase boundary the DD ratified) — that is an end-state change, not a phasing call. When you defer scope to a later box, say so plainly in `## Out of scope` with the owning box named, and proceed.
 
-   **DD-edit commit shape:** message body explains *why* the edit is needed (link to the Open-question shape it resolves); trailers `Review-Needed: committed by Claude Code` and `AI-Assisted: architect (claude-opus-4-7)`. Commit inside `dd_commit_repo` (use `git -C <dd_commit_repo>` when it is not the workspace root). Stage only the DD file(s) to keep the EXEMPT_PATHS exemption active and avoid mixing DD edits with code.
+   **DD-edit commit shape:** message body explains *why* the edit is needed (link to the Open-question shape it resolves); trailers `Review-Needed: committed by Claude Code` and `AI-Assisted: architect (claude-opus-5)`. Commit inside `dd_commit_repo` (use `git -C <dd_commit_repo>` when it is not the workspace root). Stage only the DD file(s) to keep the EXEMPT_PATHS exemption active and avoid mixing DD edits with code.
 
 7. **Commit sizing.** Default to one commit per spec. Split the landing unit into separate specs only when there is a specific technical reason:
    - (a) a box contains prerequisite scaffolding/hardening that must be verified independently before the next step can proceed safely (e.g. a client trait + impl precedes any verb that uses it);

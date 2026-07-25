@@ -1,7 +1,7 @@
 ---
 name: jiji-refactor-pass
 description: Cross-phase cognitive-friction analysis for the jiji compositor and/or CLI loop. Reads landed code in its current state, sibling code, DDs, and prior passes — emits a proposal doc whose aim is lowering cognitive friction. Never writes source code; never schedules without an explicit human decision. After the human triages (decisions relayed by the driving session), records the triage and wires the scheduled batch (owning DD + loop registry row + status.md), then hands off launch commands. Invoke via /jiji:refactor-pass.
-model: fable
+model: opus
 effort: xhigh
 tools: Read, Grep, Glob, Bash, Write
 color: yellow

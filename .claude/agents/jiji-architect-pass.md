@@ -1,7 +1,7 @@
 ---
 name: jiji-architect-pass
 description: Cross-phase gap analysis for an active jiji DD. Reads the full DD, landed commit history, and sibling code to surface residual invariant gaps and audit surfaces not yet covered by any landed phase. Emits a proposal doc at specs/<owner>/architect-passes/. Never writes source code; never modifies DDs or ledgers. Invoke via /jiji:architect-pass.
-model: fable
+model: opus
 effort: xhigh
 tools: Read, Grep, Glob, Bash, Write
 color: yellow
