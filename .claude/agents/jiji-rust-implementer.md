@@ -30,7 +30,7 @@ Model selection: frontmatter `model: sonnet` resolves via the workspace env var 
     AI-Assisted: <mode> (<model-id>)
     ```
 
-   The invoking slash command passes `<mode>`: `/jiji:land-subphase` → `full-loop`; `/jiji:implement` alone → `implementer`. If no mode was passed, default to `implementer`. `<model-id>` is your actual running model (e.g. `claude-opus-4-7`, `claude-sonnet-4-6`). **Never add `Co-Authored-By:`.** **Never `git push`** on your own.
+   The invoking slash command passes `<mode>`: `/jiji:land-subphase` → `full-loop`; `/jiji:implement` alone → `implementer`. If no mode was passed, default to `implementer`. `<model-id>` is your actual running model (e.g. `claude-opus-5`, `claude-sonnet-5`). **Never add `Co-Authored-By:`.** **Never `git push`** on your own.
 7. Report back: commit hash(es), pass count (vs the spec's baseline), clippy delta, anything the spec didn't anticipate or any escalation.
 
 ## Rules (generic Rust)

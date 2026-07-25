@@ -32,7 +32,7 @@ Model selection: frontmatter `model: sonnet` resolves via the workspace env var 
     AI-Assisted: <mode> (<model-id>)
     ```
 
-   The invoking slash command passes `<mode>`: `/jiji:land-subphase` → `full-loop`; `/jiji:implement` alone → `implementer`. If no mode was passed, default to `implementer`. `<model-id>` is your actual running model (e.g. `claude-sonnet-4-6`). **Never add `Co-Authored-By:`.** **Never `git push`** on your own.
+   The invoking slash command passes `<mode>`: `/jiji:land-subphase` → `full-loop`; `/jiji:implement` alone → `implementer`. If no mode was passed, default to `implementer`. `<model-id>` is your actual running model (e.g. `claude-sonnet-5`). **Never add `Co-Authored-By:`.** **Never `git push`** on your own.
 7. Report back: commit hash(es), which gates ran (and which did not, with the reason), file/line deltas, anything the spec didn't anticipate or any escalation.
 
 ## Rules (generic JS / WebExtension)

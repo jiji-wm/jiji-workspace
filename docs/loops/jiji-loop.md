@@ -116,7 +116,7 @@ The fixer's report may end with a "Meta-learning hints" section pointing at a re
 That's its own sub-phase. The implementer lands a rev bump as a standalone commit before any code that wraps the new variant. Bump first → verify `cargo check` → land. Then plan the wrapping work as a normal sub-phase against the new rev. (The exact discipline is in `repos/jiji-activities/CLAUDE.md`.)
 
 ### "Started from a stale spec after a day away"
-Don't. `/clear` first, then run `/jiji:next-subphase <target>` fresh. Long-context retrieval on Opus 4.7 is noticeably worse than 4.6; don't let sessions sprawl.
+Don't. `/clear` first, then run `/jiji:next-subphase <target>` fresh. Long-context retrieval degrades as a session sprawls; keep each sub-phase in a fresh context.
 
 ## Cost / effort quick reference
 
@@ -172,4 +172,4 @@ Adding a loop target is one registry row — in `loops.conf` when the DD ships i
 - **Two repos for the `cli` target.** Its code commits and DD commit both land in `repos/jiji-activities`, but the workspace `CLAUDE.md` Resume-cue edit lands in the workspace repo — so the scribe produces commits in two repos. For the `compositor` target (`dd_commit_repo` = `.`), DD and Resume-cue edits both live in the workspace, as separate commits.
 - **Per-codebase baselines live in the target repo's `CLAUDE.md`.** Test counts and clippy baselines (compositor's four-bucket arithmetic; the CLI's count) are tracked there, not here. If a count drifts unexpectedly, investigate before committing — an unexplained delta is a stop-and-report condition.
 - **Voice consistency.** The DDs are read alongside each other. Scribes match the existing `Reviewed:` voice exactly.
-- **`/clear` between sub-phases.** Opus 4.7's long-context retrieval regression is real; don't let sessions sprawl across multiple sub-phases. The orchestrator's fresh-`claude -p`-per-iteration design exists for the same reason.
+- **`/clear` between sub-phases.** Retrieval quality drops as context fills; don't let sessions sprawl across multiple sub-phases. The orchestrator's fresh-`claude -p`-per-iteration design exists for the same reason.

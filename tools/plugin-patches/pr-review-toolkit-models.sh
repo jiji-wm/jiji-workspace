@@ -5,8 +5,8 @@
 # /plugin update.
 #
 # Target overrides — pin every voice that would otherwise inherit to an
-# explicit model so none follow the session model (the session may run on
-# fable):
+# explicit model so none follow the session model (which may be overridden
+# per-invocation):
 #   comment-analyzer:       inherit -> sonnet   (mechanical, single-axis)
 #   pr-test-analyzer:       inherit -> sonnet   (mechanical, single-axis)
 #   silent-failure-hunter:  inherit -> opus     (control-flow reasoning taste)
@@ -15,7 +15,7 @@
 # code-reviewer and code-simplifier are left at upstream opus (highest-leverage
 # broad review voices). With the two taste voices also pinned to opus, the
 # review panel spans opus + sonnet with no agent inheriting the session, so it
-# reads the same whether the session runs on opus or fable.
+# reads the same regardless of what the session itself is running on.
 #
 # The script searches ~/.claude/plugins/cache/ (where auto-update puts freshly
 # pulled versions) and never touches the marketplace clone (which auto-update
