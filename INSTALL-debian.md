@@ -305,8 +305,10 @@ cargo install --path . --locked
 
 # 2. Native-messaging manifest — deployed by chezmoi
 #    (run_onchange_install-packages.sh writes
-#    ~/.mozilla/native-messaging-hosts/org.gajdusek.jiji_firefox_workspaces.json
-#    pointing at ~/.cargo/bin/jiji-firefox-workspaces-host)
+#    ~/.mozilla/native-messaging-hosts/io.github.jiji_wm.jiji_firefox_workspaces.json
+#    pointing at ~/.cargo/bin/jiji-firefox-workspaces-host, and sweeps the
+#    pre-2026-07-26 org.gajdusek.* manifest, which would otherwise stay a
+#    valid registration under the old name)
 chezmoi apply
 
 # 3. Extension — depends on the Firefox channel:
@@ -317,6 +319,13 @@ chezmoi apply
 #      repos/jiji-firefox-workspaces/extension/sign.sh (needs AMO API keys;
 #      see that extension/README.md for the full walkthrough)
 ```
+
+If the extension was installed before 2026-07-26, remove it and install it
+again: its id changed (`…@gajdusek` → `…@jiji-wm.github.io`), so Firefox
+treats the rebuilt extension as a different add-on rather than an update.
+Per-window `sessions` values keyed to the old id do not carry over — every
+window is re-tagged on the next run, so the only loss is placement history
+for windows never seen since.
 
 Works against both compositor regimes: on a jiji build with the `app_tag`
 IPC field the host reads the structured tag; on upstream niri / older jiji
