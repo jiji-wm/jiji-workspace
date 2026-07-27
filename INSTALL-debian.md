@@ -407,6 +407,52 @@ Requires a jiji session (compositor build with the appearance-override IPC).
 Colors are changed by editing the palette and restarting the service (no
 hot-reload). Logs: `journalctl --user -u jiji-kbd-indicator`.
 
+### jiji-session-manager (per-activity session save/restore/suspend)
+
+Suspends an activity by stashing what its windows need to come back and then
+closing them, and restores it when the activity is next activated. The
+compositor owns the activity lifecycle and raises the confirmation; this daemon
+owns process kill/spawn, preconditions and the per-app adapters — wezterm+tmux
+(re-attach, near-lossless), firefox (via the extension and its native host),
+and relaunch-only for everything else.
+
+```sh
+# 1. Binary + systemd user unit (user-local, no sudo)
+./scripts/install.sh jiji-session-manager
+
+# 2. Verify against the running compositor before enabling. Read-only:
+#    prints the activity/workspace/window tree, which adapter claims each
+#    window, and what it could not claim. Exercises the whole IPC path.
+jiji-session-manager capture
+
+# 3. Enable (once; later installs auto-restart a running daemon)
+systemctl --user enable --now jiji-session-manager.service
+```
+
+No config file is required — a missing `~/.config/jiji-session-manager/config.toml`
+is not an error, the daemon just runs with defaults. One is only needed for
+per-activity preconditions (e.g. bring up a VPN before restoring). When you do
+author one, install the binary *before* deploying the config: the config type
+rejects unknown fields, so a new key reaching an older binary makes it refuse to
+start.
+
+Requires a jiji session whose compositor exposes the session-management IPC
+(`jiji msg session-capture` plus the activity-lifecycle event-stream events).
+Verify with `jiji msg session-capture --help`.
+
+For the wezterm adapter to claim anything, a window's title must carry a
+`tmux:<session>` token (`tmux:<session>@<ssh-host>` for a session reached over
+ssh, which restores via `ssh -t <host> tmux` instead of locally). Every wezterm
+window shares one mux process, so the title is the only per-window identity
+available. The maintainer's dotfiles set this from tmux's `set-titles-string`,
+scoped to the workstation that performs restores. Without the marker the adapter
+claims nothing and `capture` reports those windows as unclaimed — harmless, but
+the near-lossless path stays inert.
+
+Note the stash lives in the running daemon's memory only: restarting the service
+between a suspend and its restore loses that session. Logs:
+`journalctl --user -u jiji-session-manager`.
+
 ## Upgrading
 
 ```sh
