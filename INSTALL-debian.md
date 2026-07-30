@@ -449,9 +449,17 @@ scoped to the workstation that performs restores. Without the marker the adapter
 claims nothing and `capture` reports those windows as unclaimed — harmless, but
 the near-lossless path stays inert.
 
-Note the stash lives in the running daemon's memory only: restarting the service
-between a suspend and its restore loses that session. Logs:
-`journalctl --user -u jiji-session-manager`.
+Restore an activity's stored session from disk (whether or not this daemon
+instance ever stashed it, and whether or not the activity still exists) with:
+
+```sh
+jiji-session-manager restore <activity>
+```
+
+The stash and last-seen stores both persist to
+`$XDG_STATE_HOME/jiji-session-manager` (or `~/.local/state/jiji-session-manager`),
+so `restore` survives a daemon restart between a suspend and its restore.
+Logs: `journalctl --user -u jiji-session-manager`.
 
 ## Upgrading
 
